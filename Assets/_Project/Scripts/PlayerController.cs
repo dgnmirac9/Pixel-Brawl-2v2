@@ -18,6 +18,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float attackRange = 0.5f;     // Vuruş alanının yarıçapı
     [SerializeField] private int attackDamage = 20;       // Vuruş Hasarı
     
+    [Header("Attack Rate Settings")]
+    [SerializeField] private float attackCooldown = 0.4f;
+    private float nextAttackTime = 0f;
+    
     // Referanslar
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -56,9 +60,10 @@ public class PlayerController : MonoBehaviour
         HandleFlipping();
 
         //Saldırı (SOL TIK)
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && Time.time >= nextAttackTime)
         {
             PerformAttack();
+            nextAttackTime = Time.time + attackCooldown;
         }
         
         // Dash (Space)

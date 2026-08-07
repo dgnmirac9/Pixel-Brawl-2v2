@@ -133,7 +133,7 @@ public class PlayerController : MonoBehaviour
             EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
             if (enemy != null)
             {
-                enemy.TakeDamage(attackDamage);
+                enemy.TakeDamage(attackDamage, transform.position);
             }
         }
     }

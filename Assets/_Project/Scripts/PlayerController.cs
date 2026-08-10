@@ -26,7 +26,11 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Animator anim;
-
+    private Camera mainCamera;
+    private Vector2 aimDirection = Vector2.right;
+    [SerializeField] private Transform aimOrigin;
+    private float attackPointDistance;
+    
     // Durumlar
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.right;
@@ -38,6 +42,20 @@ public class PlayerController : MonoBehaviour
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        mainCamera = Camera.main;
+        if (aimOrigin == null)
+        {
+            aimOrigin = transform;
+        }
+
+        if (attackPoint != null)
+        {
+            attackPointDistance = Vector2.Distance(
+                aimOrigin.position,
+                attackPoint.position
+            );
+        }
     }
 
     private void Update()
@@ -57,7 +75,7 @@ public class PlayerController : MonoBehaviour
         UpdateAnimations();
 
         // Sağa / Sola Dönüş (FlipX)
-        HandleFlipping();
+        HandleAiming();
 
         //Saldırı (SOL TIK)
         if (Input.GetMouseButtonDown(0) && Time.time >= nextAttackTime)
@@ -93,26 +111,52 @@ public class PlayerController : MonoBehaviour
         // Hareket ediyorsa AnimState = 1 (Run), duruyorsa AnimState = 0 (Idle)
         anim.SetInteger("AnimState", speed > 0.1f ? 1 : 0);
     }
-    private void HandleFlipping()
+    private void HandleAiming()
     {
-        if (moveInput.x > 0)
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+
+            if (mainCamera == null)
+                return;
+        }
+
+        Vector3 mouseScreenPosition = Input.mousePosition;
+
+        // Mouse'u AimOrigin ile aynı dünya düzlemine dönüştürür.
+        mouseScreenPosition.z =
+            mainCamera.WorldToScreenPoint(aimOrigin.position).z;
+
+        Vector3 mouseWorldPosition =
+            mainCamera.ScreenToWorldPoint(mouseScreenPosition);
+
+        Vector2 originPosition = aimOrigin.position;
+
+        aimDirection =
+            ((Vector2)mouseWorldPosition - originPosition).normalized;
+
+        if (aimDirection == Vector2.zero)
+            return;
+
+        if (attackPoint != null)
+        {
+            Vector2 attackPosition =
+                originPosition + aimDirection * attackPointDistance;
+
+            attackPoint.position = new Vector3(
+                attackPosition.x,
+                attackPosition.y,
+                attackPoint.position.z
+            );
+        }
+
+        if (aimDirection.x > 0.01f)
         {
             spriteRenderer.flipX = false;
-            if (attackPoint != null)
-            {
-                Vector3 pos = attackPoint.localPosition;
-                attackPoint.localPosition = new Vector3(Mathf.Abs(pos.x), pos.y, pos.z);
-            }
         }
-        else if (moveInput.x < 0)
+        else if (aimDirection.x < -0.01f)
         {
             spriteRenderer.flipX = true;
-
-            if (attackPoint != null)
-            {
-                Vector3 pos = attackPoint.localPosition;
-                attackPoint.localPosition = new Vector3(-Mathf.Abs(pos.x), pos.y, pos.z);
-            }
         }
     }
 
@@ -154,28 +198,34 @@ public class PlayerController : MonoBehaviour
     
     private IEnumerator PerformDash()
     {
-        canDash = false;
-        isDashing = true;
+    canDash = false;
+    isDashing = true;
 
-        if (anim != null)
-        {
-            //yuvarlanma animasyonu
-            anim.SetTrigger("Roll");
-        }
-        
-        Vector2 dashDirection = moveInput != Vector2.zero ? moveInput : lastMoveDirection;
+    if (anim != null)
+    {
+        anim.SetTrigger("Roll");
+    }
 
-        float timer = 0f;
-        while (timer < dashDuration)
-        {
-            rb.MovePosition(rb.position + dashDirection * (dashSpeed * Time.fixedDeltaTime));
-            timer += Time.deltaTime;
-            yield return null;
-        }
+    Vector2 dashDirection =
+        moveInput != Vector2.zero
+            ? moveInput.normalized
+            : lastMoveDirection.normalized;
 
-        isDashing = false;
+    float elapsedTime = 0f;
 
-        yield return new WaitForSeconds(dashCooldown);
-        canDash = true;
+    while (elapsedTime < dashDuration)
+    {
+        rb.linearVelocity = dashDirection * dashSpeed;
+
+        yield return new WaitForFixedUpdate();
+        elapsedTime += Time.fixedDeltaTime;
+    }
+
+    rb.linearVelocity = Vector2.zero;
+    isDashing = false;
+
+    yield return new WaitForSeconds(dashCooldown);
+
+    canDash = true;
     }
 }

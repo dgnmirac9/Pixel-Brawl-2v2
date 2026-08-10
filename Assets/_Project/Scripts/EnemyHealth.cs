@@ -18,6 +18,9 @@ public class EnemyHealth : MonoBehaviour
     
     [SerializeField] private HealthBarUI healthBar; // Can barı referansı
 
+    private Camera mainCamera;
+    private Vector2 aimDirection = Vector2.right;
+    private float attackPointDistance;
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Color originalColor;

@@ -1,7 +1,7 @@
-using System;
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public class EnemyHealth : MonoBehaviour
 {
     [Header("Health Settings")]

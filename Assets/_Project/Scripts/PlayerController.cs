@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Netcode.Components;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
@@ -47,7 +48,8 @@ public class PlayerController : NetworkBehaviour
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner
         );
-
+    
+    private float nextServerAttackTime;
     private const float AimSyncThreshold = 0.0025f;
     
     private void Awake()
@@ -168,6 +170,7 @@ public class PlayerController : NetworkBehaviour
 
     private void PerformAttack()
     {
+        // Animasyon sahibinde hemen oynar ve NetworkAnimator paylaşır.
         if (networkAnimator != null && IsSpawned)
         {
             networkAnimator.SetTrigger("Attack1");
@@ -177,22 +180,12 @@ public class PlayerController : NetworkBehaviour
             anim.SetTrigger("Attack1");
         }
 
-        if (attackPoint == null) return;
-        
-        //vuruş alanındaki tüm collider'ları topla
-        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(attackPoint.position, attackRange);
-            
-        foreach (Collider2D hit in hitColliders)
+        if (attackPoint == null || aimOrigin == null)
+            return;
+
+        if (IsSpawned)
         {
-            //kendimize vurmayı engelliyoruz.
-            if (hit.gameObject == gameObject) continue; 
-            
-            //vurulan objede enemy enemyhealth script'i var mı kontrol et
-            EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(attackDamage, transform.position);
-            }
+            RequestAttackRpc(aimDirection);
         }
     }
 
@@ -261,6 +254,59 @@ public class PlayerController : NetworkBehaviour
         if (!IsOwner)
         {
             ApplyAimVisuals(newDirection);
+        }
+    }
+    [Rpc(SendTo.Server)]
+    private void RequestAttackRpc(Vector2 requestedAimDirection)
+    {
+        ResolveAttackOnServer(requestedAimDirection);
+    }
+
+    private void ResolveAttackOnServer(Vector2 requestedAimDirection)
+    {
+        if (!IsServer)
+            return;
+
+        // Client değiştirilmiş bir kodla saldırı spam'leyemesin.
+        if (Time.time < nextServerAttackTime)
+            return;
+
+        nextServerAttackTime = Time.time + attackCooldown;
+
+        Vector2 attackDirection = requestedAimDirection.normalized;
+
+        if (attackDirection == Vector2.zero)
+            return;
+
+        Vector2 attackCenter =
+            (Vector2)aimOrigin.position +
+            attackDirection * attackPointDistance;
+
+        Collider2D[] hitColliders =
+            Physics2D.OverlapCircleAll(
+                attackCenter,
+                attackRange
+            );
+
+        HashSet<EnemyHealth> damagedEnemies =
+            new HashSet<EnemyHealth>();
+
+        foreach (Collider2D hit in hitColliders)
+        {
+            EnemyHealth enemy =
+                hit.GetComponentInParent<EnemyHealth>();
+
+            if (enemy == null)
+                continue;
+
+            // Bir enemy'de birden fazla collider varsa bir kez hasar ver.
+            if (!damagedEnemies.Add(enemy))
+                continue;
+
+            enemy.TakeDamage(
+                attackDamage,
+                transform.position
+            );
         }
     }
     

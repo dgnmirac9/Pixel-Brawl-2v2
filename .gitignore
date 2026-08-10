@@ -27,6 +27,8 @@
 
 # Visual Studio cache directory
 .vs/
+.vscode/
+.idea/
 
 # Gradle cache directory
 .gradle/
@@ -37,6 +39,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -74,5 +77,5 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-.idea/
-*.csproj
+# macOS
+.DS_Store

@@ -1,9 +1,11 @@
 using System.Collections;
 using UnityEngine;
+using Unity.Netcode;
+using Unity.Netcode.Components;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
@@ -30,6 +32,7 @@ public class PlayerController : MonoBehaviour
     private Vector2 aimDirection = Vector2.right;
     [SerializeField] private Transform aimOrigin;
     private float attackPointDistance;
+    private NetworkAnimator networkAnimator;
     
     // Durumlar
     private Vector2 moveInput;
@@ -37,8 +40,19 @@ public class PlayerController : MonoBehaviour
     private bool isDashing = false;
     private bool canDash = true;
 
+    
+    private NetworkVariable<Vector2> networkAimDirection =
+        new NetworkVariable<Vector2>(
+            Vector2.right,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Owner
+        );
+
+    private const float AimSyncThreshold = 0.0025f;
+    
     private void Awake()
     {
+        networkAnimator = GetComponent<NetworkAnimator>();
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
@@ -60,6 +74,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (!IsOwner) return; 
         if (isDashing) return;
 
         // Girdiler (WASD / Yön Tuşları)
@@ -93,10 +108,11 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (isDashing) return;
+        if (!IsOwner || isDashing) return;
 
-        // Fizik tabanlı hareket
-        rb.MovePosition(rb.position + moveInput * (moveSpeed * Time.fixedDeltaTime));
+        rb.MovePosition(
+            rb.position + moveInput * (moveSpeed * Time.fixedDeltaTime)
+        );
     }
 
     private void UpdateAnimations()
@@ -123,48 +139,41 @@ public class PlayerController : MonoBehaviour
 
         Vector3 mouseScreenPosition = Input.mousePosition;
 
-        // Mouse'u AimOrigin ile aynı dünya düzlemine dönüştürür.
         mouseScreenPosition.z =
             mainCamera.WorldToScreenPoint(aimOrigin.position).z;
 
         Vector3 mouseWorldPosition =
             mainCamera.ScreenToWorldPoint(mouseScreenPosition);
 
-        Vector2 originPosition = aimOrigin.position;
+        Vector2 newAimDirection =
+            ((Vector2)mouseWorldPosition -
+             (Vector2)aimOrigin.position).normalized;
 
-        aimDirection =
-            ((Vector2)mouseWorldPosition - originPosition).normalized;
-
-        if (aimDirection == Vector2.zero)
+        if (newAimDirection == Vector2.zero)
             return;
 
-        if (attackPoint != null)
-        {
-            Vector2 attackPosition =
-                originPosition + aimDirection * attackPointDistance;
+        aimDirection = newAimDirection;
 
-            attackPoint.position = new Vector3(
-                attackPosition.x,
-                attackPosition.y,
-                attackPoint.position.z
-            );
-        }
+        // Sahip oyuncuda anında göster.
+        ApplyAimVisuals(aimDirection);
 
-        if (aimDirection.x > 0.01f)
+        // Yön yeterince değiştiyse network'e gönder.
+        if (IsSpawned &&
+            (networkAimDirection.Value - aimDirection).sqrMagnitude
+            > AimSyncThreshold)
         {
-            spriteRenderer.flipX = false;
-        }
-        else if (aimDirection.x < -0.01f)
-        {
-            spriteRenderer.flipX = true;
+            networkAimDirection.Value = aimDirection;
         }
     }
 
     private void PerformAttack()
     {
-        if (anim != null)
+        if (networkAnimator != null && IsSpawned)
         {
-            //temel vuruş için attack1 trigger'ını çalıştırır
+            networkAnimator.SetTrigger("Attack1");
+        }
+        else if (anim != null)
+        {
             anim.SetTrigger("Attack1");
         }
 
@@ -201,7 +210,11 @@ public class PlayerController : MonoBehaviour
     canDash = false;
     isDashing = true;
 
-    if (anim != null)
+    if (networkAnimator != null && IsSpawned)
+    {
+        networkAnimator.SetTrigger("Roll");
+    }
+    else if (anim != null)
     {
         anim.SetTrigger("Roll");
     }
@@ -227,5 +240,58 @@ public class PlayerController : MonoBehaviour
     yield return new WaitForSeconds(dashCooldown);
 
     canDash = true;
+    }
+    
+    public override void OnNetworkSpawn()
+    {
+        networkAimDirection.OnValueChanged += OnAimDirectionChanged;
+
+        ApplyAimVisuals(networkAimDirection.Value);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        networkAimDirection.OnValueChanged -= OnAimDirectionChanged;
+    }
+
+    private void OnAimDirectionChanged(
+        Vector2 previousDirection,
+        Vector2 newDirection)
+    {
+        if (!IsOwner)
+        {
+            ApplyAimVisuals(newDirection);
+        }
+    }
+    
+    private void ApplyAimVisuals(Vector2 direction)
+    {
+        if (direction == Vector2.zero)
+            return;
+
+        Vector2 normalizedDirection = direction.normalized;
+        Vector2 originPosition = aimOrigin.position;
+
+        if (attackPoint != null)
+        {
+            Vector2 attackPosition =
+                originPosition +
+                normalizedDirection * attackPointDistance;
+
+            attackPoint.position = new Vector3(
+                attackPosition.x,
+                attackPosition.y,
+                attackPoint.position.z
+            );
+        }
+
+        if (normalizedDirection.x > 0.01f)
+        {
+            spriteRenderer.flipX = false;
+        }
+        else if (normalizedDirection.x < -0.01f)
+        {
+            spriteRenderer.flipX = true;
+        }
     }
 }

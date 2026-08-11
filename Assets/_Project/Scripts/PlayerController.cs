@@ -262,18 +262,21 @@ public class PlayerController : NetworkBehaviour
         ResolveAttackOnServer(requestedAimDirection);
     }
 
-    private void ResolveAttackOnServer(Vector2 requestedAimDirection)
+    private void ResolveAttackOnServer(
+        Vector2 requestedAimDirection)
     {
         if (!IsServer)
             return;
 
-        // Client değiştirilmiş bir kodla saldırı spam'leyemesin.
+        // Server tarafında saldırı cooldown kontrolü.
         if (Time.time < nextServerAttackTime)
             return;
 
-        nextServerAttackTime = Time.time + attackCooldown;
+        nextServerAttackTime =
+            Time.time + attackCooldown;
 
-        Vector2 attackDirection = requestedAimDirection.normalized;
+        Vector2 attackDirection =
+            requestedAimDirection.normalized;
 
         if (attackDirection == Vector2.zero)
             return;
@@ -288,18 +291,41 @@ public class PlayerController : NetworkBehaviour
                 attackRange
             );
 
+        HashSet<FighterHealth> damagedFighters =
+            new HashSet<FighterHealth>();
+
         HashSet<EnemyHealth> damagedEnemies =
             new HashSet<EnemyHealth>();
 
         foreach (Collider2D hit in hitColliders)
         {
+            FighterHealth fighter =
+                hit.GetComponentInParent<FighterHealth>();
+
+            if (fighter != null)
+            {
+                // Oyuncunun kendisine vurmasını engeller.
+                if (fighter.NetworkObject == NetworkObject)
+                    continue;
+
+                if (!fighter.IsAlive)
+                    continue;
+
+                // Birden fazla collider aynı oyuncuya
+                // birden fazla hasar vermesin.
+                if (!damagedFighters.Add(fighter))
+                    continue;
+
+                fighter.TakeDamage(attackDamage);
+                continue;
+            }
+
             EnemyHealth enemy =
                 hit.GetComponentInParent<EnemyHealth>();
 
             if (enemy == null)
                 continue;
 
-            // Bir enemy'de birden fazla collider varsa bir kez hasar ver.
             if (!damagedEnemies.Add(enemy))
                 continue;
 

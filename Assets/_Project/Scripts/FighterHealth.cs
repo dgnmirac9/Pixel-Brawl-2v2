@@ -34,7 +34,8 @@ public class FighterHealth : NetworkBehaviour
 
     public int CurrentHealth => currentHealth.Value;
     public bool IsAlive => isAlive.Value;
-
+    public int TeamId => (int)(OwnerClientId % 2);
+    
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
@@ -57,17 +58,40 @@ public class FighterHealth : NetworkBehaviour
 
         UpdateHealthBar(currentHealth.Value);
         ApplyAliveState(isAlive.Value);
+
+        if (IsServer)
+        {
+            if (MatchManager.Instance == null)
+            {
+                Debug.LogError(
+                    $"{name}: MatchManager bulunamadı, fighter kaydedilemedi."
+                );
+            }
+            else
+            {
+                MatchManager.Instance.RegisterFighter(this);
+
+                Debug.Log(
+                    $"{name} kaydedildi. " +
+                    $"ClientId: {OwnerClientId} | Takım: {TeamId}"
+                );
+            }
+        }
     }
 
     public override void OnNetworkDespawn()
     {
         currentHealth.OnValueChanged -= OnHealthChanged;
         isAlive.OnValueChanged -= OnAliveChanged;
+
+        if (IsServer && MatchManager.Instance != null)
+        {
+            MatchManager.Instance.UnregisterFighter(this);
+        }
     }
 
     public void TakeDamage(int damageAmount)
     {
-        // Hasar kararını yalnızca host/server verir.
         if (!IsServer)
             return;
 
@@ -87,20 +111,33 @@ public class FighterHealth : NetworkBehaviour
             $"Kalan can: {currentHealth.Value}"
         );
 
-        if (currentHealth.Value <= 0)
+        if (currentHealth.Value <= 0 && isAlive.Value)
         {
             isAlive.Value = false;
+
+            MatchManager.Instance?.NotifyFighterDefeated(this);
         }
     }
 
     public void ResetFighter()
     {
-        // Daha sonra round başlangıcında MatchManager çağıracak.
         if (!IsServer)
             return;
 
         currentHealth.Value = maxHealth;
         isAlive.Value = true;
+
+        // Host tarafındaki görsel ve kontrol durumunu
+        // aynı karede doğrudan yeniler.
+        UpdateHealthBar(currentHealth.Value);
+        ApplyAliveState(isAlive.Value);
+
+        Debug.Log(
+            $"{name} resetlendi. " +
+            $"ClientId: {OwnerClientId} | " +
+            $"Can: {currentHealth.Value} | " +
+            $"Alive: {isAlive.Value}"
+        );
     }
 
     private void OnHealthChanged(
@@ -129,7 +166,7 @@ public class FighterHealth : NetworkBehaviour
     {
         if (playerController != null)
         {
-            playerController.enabled = alive;
+            playerController.SetControlEnabled(alive);
         }
 
         if (fighterColliders != null)

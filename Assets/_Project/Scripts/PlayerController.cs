@@ -26,6 +26,7 @@ public class PlayerController : NetworkBehaviour
     private float nextAttackTime = 0f;
     
     // Referanslar
+    private bool canControl = true;
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Animator anim;
@@ -76,7 +77,7 @@ public class PlayerController : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsOwner) return; 
+        if (!IsOwner || !canControl) return; 
         if (isDashing) return;
 
         // Girdiler (WASD / Yön Tuşları)
@@ -110,7 +111,7 @@ public class PlayerController : NetworkBehaviour
 
     private void FixedUpdate()
     {
-        if (!IsOwner || isDashing) return;
+        if (!IsOwner || !canControl || isDashing) return;
 
         rb.MovePosition(
             rb.position + moveInput * (moveSpeed * Time.fixedDeltaTime)
@@ -168,6 +169,51 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    public void SetControlEnabled(bool controlEnabled)
+    {
+        canControl = controlEnabled;
+
+        if (!controlEnabled)
+        {
+            StopAllCoroutines();
+
+            moveInput = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
+
+            isDashing = false;
+            canDash = true;
+        }
+    }
+    public void ServerMoveToSpawn(Vector3 spawnPosition)
+    {
+        if (!IsServer)
+            return;
+
+        ApplySpawnPositionRpc(spawnPosition);
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void ApplySpawnPositionRpc(Vector3 spawnPosition)
+    {
+        MoveImmediately(spawnPosition);
+    }
+
+    private void MoveImmediately(Vector3 targetPosition)
+    {
+        moveInput = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
+
+        rb.position = new Vector2(
+            targetPosition.x,
+            targetPosition.y
+        );
+
+        transform.position = new Vector3(
+            targetPosition.x,
+            targetPosition.y,
+            transform.position.z
+        );
+    }
     private void PerformAttack()
     {
         // Animasyon sahibinde hemen oynar ve NetworkAnimator paylaşır.
@@ -240,13 +286,64 @@ public class PlayerController : NetworkBehaviour
         networkAimDirection.OnValueChanged += OnAimDirectionChanged;
 
         ApplyAimVisuals(networkAimDirection.Value);
+        
+        if (IsOwner)
+        {
+            StartCoroutine(MoveToSpawnPoint());
+        }
     }
 
     public override void OnNetworkDespawn()
     {
         networkAimDirection.OnValueChanged -= OnAimDirectionChanged;
     }
+    private IEnumerator MoveToSpawnPoint()
+    {
+        // NetworkTransform'un spawn işlemini tamamlamasını bekle.
+        yield return null;
 
+        if (PlayerSpawnManager.Instance == null)
+        {
+            Debug.LogError(
+                "PlayerSpawnManager sahnede bulunamadı!"
+            );
+
+            yield break;
+        }
+
+        Vector3 spawnPosition =
+            PlayerSpawnManager.Instance.GetSpawnPosition(
+                OwnerClientId
+            );
+
+        MoveImmediately(spawnPosition);
+
+        Debug.Log(
+            $"Player {OwnerClientId}, " +
+            $"{spawnPosition} pozisyonunda oluşturuldu."
+        );
+    }
+    public void ServerSetControlEnabled(bool controlEnabled)
+    {
+        if (!IsServer)
+            return;
+
+        // Bu karakter Host'a aitse server ve owner aynı uygulamadır.
+        if (IsOwner)
+        {
+            SetControlEnabled(controlEnabled);
+            return;
+        }
+
+        // Karakter uzak Client'a aitse komutu sahibine gönder.
+        ApplyControlStateRpc(controlEnabled);
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void ApplyControlStateRpc(bool controlEnabled)
+    {
+        SetControlEnabled(controlEnabled);
+    }
     private void OnAimDirectionChanged(
         Vector2 previousDirection,
         Vector2 newDirection)
@@ -335,7 +432,6 @@ public class PlayerController : NetworkBehaviour
             );
         }
     }
-    
     private void ApplyAimVisuals(Vector2 direction)
     {
         if (direction == Vector2.zero)

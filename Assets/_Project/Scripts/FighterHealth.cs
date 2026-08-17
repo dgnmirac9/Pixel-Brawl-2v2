@@ -31,7 +31,7 @@ public class FighterHealth : NetworkBehaviour
     private SpriteRenderer spriteRenderer;
     private Collider2D[] fighterColliders;
     private Color originalColor;
-
+    
     public int CurrentHealth => currentHealth.Value;
     public bool IsAlive => isAlive.Value;
     public int TeamId => (int)(OwnerClientId % 2);

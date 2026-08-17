@@ -17,6 +17,7 @@ public class RelayManager : MonoBehaviour
     public string CurrentJoinCode { get; private set; }
     public string StatusMessage { get; private set; }
     public bool IsBusy { get; private set; }
+    public event Action StateChanged;
 
     private void Awake()
     {
@@ -106,6 +107,7 @@ public class RelayManager : MonoBehaviour
         finally
         {
             IsBusy = false;
+            StateChanged?.Invoke();
         }
     }
 
@@ -184,6 +186,7 @@ public class RelayManager : MonoBehaviour
         finally
         {
             IsBusy = false;
+            StateChanged?.Invoke();
         }
     }
 
@@ -232,7 +235,10 @@ public class RelayManager : MonoBehaviour
     private void SetStatus(string message)
     {
         StatusMessage = message;
+
         Debug.Log($"[Relay] {message}");
+
+        StateChanged?.Invoke();
     }
 
     private void OnDestroy()

@@ -15,7 +15,12 @@ public class MatchUI : MonoBehaviour
 
     private MatchManager matchManager;
 
-    private IEnumerator Start()
+    private void OnEnable()
+    {
+        StartCoroutine(InitializeMatchUI());
+    }
+
+    private IEnumerator InitializeMatchUI()
     {
         while (MatchManager.Instance == null ||
                !MatchManager.Instance.IsSpawned)
@@ -24,6 +29,9 @@ public class MatchUI : MonoBehaviour
         }
 
         matchManager = MatchManager.Instance;
+
+        // Tekrarlı aboneliği önler.
+        matchManager.MatchStateChanged -= RefreshUI;
         matchManager.MatchStateChanged += RefreshUI;
 
         RefreshUI();
@@ -33,7 +41,7 @@ public class MatchUI : MonoBehaviour
     {
         if (matchManager == null)
             return;
-
+        
         if (team0ScoreText != null)
             team0ScoreText.text =
                 matchManager.Team0Score.ToString();
@@ -54,11 +62,11 @@ public class MatchUI : MonoBehaviour
         if (resultText != null && matchManager.MatchEnded)
         {
             resultText.text =
-                $"TAKIM {matchManager.WinningTeamId} KAZANDI!";
+                $"TEAM {matchManager.WinningTeamId + 1} WINS!";
         }
     }
 
-    private void OnDestroy()
+    private void OnDisable()
     {
         if (matchManager != null)
         {

@@ -201,9 +201,11 @@ public class MatchManager : NetworkBehaviour
         // Kazanan takım gerekli round sayısına ulaştı mı?
         if (winnerScore >= roundsToWin)
         {
-            matchEnded.Value = true;
             winningTeamId.Value = winnerId;
+            matchEnded.Value = true;
 
+            NotifyMatchStateChanged();
+            
             Debug.Log(
                 $"MAÇ BİTTİ! Kazanan Takım: {winnerId} | " +
                 $"Final Skoru: " +

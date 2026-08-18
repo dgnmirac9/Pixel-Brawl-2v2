@@ -14,7 +14,8 @@ public class ConnectionUI : MonoBehaviour
     [SerializeField] private TMP_InputField joinCodeInput;
     [SerializeField] private Button joinButton;
     [SerializeField] private Button disconnectButton;
-
+    [SerializeField] private Button copyCodeButton;
+    
     [Header("Connection Information")]
     [SerializeField] private TMP_Text generatedCodeText;
     [SerializeField] private TMP_Text statusText;
@@ -42,7 +43,7 @@ public class ConnectionUI : MonoBehaviour
             Debug.LogError("ConnectionUI: NetworkManager bulunamadı.");
             return;
         }
-
+        
         hostButton.onClick.AddListener(HandleHostClicked);
         joinButton.onClick.AddListener(HandleJoinClicked);
         disconnectButton.onClick.AddListener(
@@ -52,6 +53,7 @@ public class ConnectionUI : MonoBehaviour
         joinCodeInput.onValueChanged.AddListener(
             HandleJoinCodeChanged
         );
+        copyCodeButton.onClick.AddListener(HandleCopyCodeClicked);
 
         relayManager.StateChanged += RefreshUI;
 
@@ -84,7 +86,24 @@ public class ConnectionUI : MonoBehaviour
         SetButtonsInteractable(true);
         RefreshJoinButton();
     }
+    
+    private void HandleCopyCodeClicked()
+    {
+        if (relayManager == null ||
+            networkManager == null ||
+            !networkManager.IsHost ||
+            string.IsNullOrEmpty(relayManager.CurrentJoinCode))
+        {
+            SetStatus("NO JOIN CODE TO COPY");
+            return;
+        }
 
+        GUIUtility.systemCopyBuffer =
+            relayManager.CurrentJoinCode;
+
+        SetStatus("JOIN CODE COPIED");
+    }
+    
     private async void HandleHostClicked()
     {
         SetButtonsInteractable(false);
@@ -236,6 +255,9 @@ public class ConnectionUI : MonoBehaviour
 
         if (generatedCodeText != null)
             generatedCodeText.text = "JOIN CODE: -";
+        
+        if (copyCodeButton != null)
+            copyCodeButton.interactable = false;
     }
 
     private void RefreshUI()
@@ -243,17 +265,19 @@ public class ConnectionUI : MonoBehaviour
         if (relayManager == null)
             return;
 
-        if (statusText != null &&
-            !string.IsNullOrEmpty(relayManager.StatusMessage))
+        string joinCode =
+            relayManager.CurrentJoinCode;
+
+        if (!string.IsNullOrEmpty(
+                relayManager.StatusMessage))
         {
-            statusText.text = relayManager.StatusMessage;
+            ApplyStatus(
+                relayManager.StatusMessage
+            );
         }
 
         if (generatedCodeText != null)
         {
-            string joinCode =
-                relayManager.CurrentJoinCode;
-
             generatedCodeText.text =
                 string.IsNullOrEmpty(joinCode)
                     ? "JOIN CODE: -"
@@ -275,6 +299,15 @@ public class ConnectionUI : MonoBehaviour
             joinCodeInput.interactable = canStart;
 
         RefreshJoinButton();
+
+        if (copyCodeButton != null)
+        {
+            copyCodeButton.interactable =
+                networkManager != null &&
+                networkManager.IsHost &&
+                networkRunning &&
+                !string.IsNullOrEmpty(joinCode);
+        }
 
         if (disconnectButton != null)
         {
@@ -320,10 +353,54 @@ public class ConnectionUI : MonoBehaviour
 
     private void SetStatus(string message)
     {
-        if (statusText != null)
-            statusText.text = message;
+        ApplyStatus(message);
     }
+    
+    private void ApplyStatus(string message)
+    {
+        if (statusText == null)
+            return;
 
+        statusText.text = message;
+
+        string upperMessage =
+            message.ToUpperInvariant();
+
+        if (upperMessage.Contains("FAILED") ||
+            upperMessage.Contains("ERROR") ||
+            upperMessage.Contains("INVALID") ||
+            upperMessage.Contains("NOT FOUND") ||
+            upperMessage.Contains("DISCONNECTED"))
+        {
+            // Hata veya bağlantı kesilmesi
+            statusText.color =
+                new Color32(229, 107, 93, 255);
+        }
+        else if (upperMessage.Contains("WAITING") ||
+                 upperMessage.Contains("INITIALIZING") ||
+                 upperMessage.Contains("CREATING") ||
+                 upperMessage.Contains("CONNECTING"))
+        {
+            // Devam eden işlem veya bekleme
+            statusText.color =
+                new Color32(232, 199, 102, 255);
+        }
+        else if (upperMessage.Contains("READY") ||
+                 upperMessage.Contains("CONNECTED") ||
+                 upperMessage.Contains("COPIED"))
+        {
+            // Başarılı durum
+            statusText.color =
+                new Color32(143, 209, 106, 255);
+        }
+        else
+        {
+            // Normal bilgi
+            statusText.color =
+                new Color32(255, 244, 214, 255);
+        }
+    }
+    
     private void OnDestroy()
     {
         if (hostButton != null)
@@ -364,6 +441,13 @@ public class ConnectionUI : MonoBehaviour
 
             networkManager.OnClientDisconnectCallback -=
                 HandleClientDisconnected;
+        }
+        
+        if (copyCodeButton != null)
+        {
+            copyCodeButton.onClick.RemoveListener(
+                HandleCopyCodeClicked
+            );
         }
     }
 }

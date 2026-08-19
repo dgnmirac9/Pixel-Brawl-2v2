@@ -59,6 +59,11 @@ public class PlayerController : NetworkBehaviour
     private NetworkAnimator networkAnimator;
     
     // Durumlar
+    
+    [SerializeField, Min(0.1f)]
+    private float breakableValidationDistance = 2.5f;
+    
+    private float serverKnockbackValidUntil;
     private Vector2 currentMoveVelocity;
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.right;
@@ -622,6 +627,9 @@ public class PlayerController : NetworkBehaviour
         if (direction == Vector2.zero)
             return;
 
+        serverKnockbackValidUntil =
+            Time.time + duration + 0.25f;
+
         ApplyKnockbackRpc(
             direction.normalized,
             Mathf.Max(0f, distance),
@@ -651,6 +659,101 @@ public class PlayerController : NetworkBehaviour
                 duration
             )
         );
+    }
+    
+    private void OnCollisionEnter2D(
+        Collision2D collision)
+    {
+        Debug.Log(
+            $"[Collision] {name} → " +
+            $"{collision.collider.name}"
+        );
+        
+        if (!IsOwner ||
+            !IsSpawned ||
+            !isKnockedBack)
+        {
+            return;
+        }
+
+        BreakableObject breakable =
+            collision.collider
+                .GetComponentInParent<
+                    BreakableObject>();
+
+        if (breakable == null ||
+            breakable.IsBroken)
+        {
+            return;
+        }
+
+        NetworkObject breakableNetworkObject =
+            breakable.NetworkObject;
+
+        if (breakableNetworkObject == null)
+            return;
+
+        RequestBreakableCollisionRpc(
+            new NetworkObjectReference(
+                breakableNetworkObject
+            )
+        );
+    }
+    
+    [Rpc(SendTo.Server)]
+    private void RequestBreakableCollisionRpc(
+        NetworkObjectReference breakableReference)
+    {
+        if (Time.time >
+            serverKnockbackValidUntil)
+        {
+            return;
+        }
+
+        if (!breakableReference.TryGet(
+                out NetworkObject breakableObject))
+        {
+            return;
+        }
+
+        BreakableObject breakable =
+            breakableObject.GetComponent<
+                BreakableObject>();
+
+        if (breakable == null ||
+            breakable.IsBroken)
+        {
+            return;
+        }
+
+        float distanceToBreakable =
+            Vector2.Distance(
+                transform.position,
+                breakable.transform.position
+            );
+
+        if (distanceToBreakable >
+            breakableValidationDistance)
+        {
+            return;
+        }
+
+        Collider2D breakableCollider =
+            breakable.GetComponent<Collider2D>();
+
+        Vector2 impactPoint =
+            breakableCollider != null
+                ? breakableCollider.ClosestPoint(
+                    transform.position
+                )
+                : breakable.transform.position;
+
+        breakable.BreakOnServer(
+            impactPoint
+        );
+
+        // Aynı knockback yalnızca bir nesne kırsın.
+        serverKnockbackValidUntil = 0f;
     }
 
     private IEnumerator PerformKnockback(

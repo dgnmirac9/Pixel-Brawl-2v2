@@ -2,6 +2,7 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
+[RequireComponent(typeof(AudioSource))]
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(FighterHealth))]
 public class HitFeedback : NetworkBehaviour
@@ -18,6 +19,18 @@ public class HitFeedback : NetworkBehaviour
     [SerializeField, Min(0.01f)]
     private float flashDuration = 0.08f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip normalHitClip;
+    [SerializeField] private AudioClip criticalHitClip;
+
+    [SerializeField, Range(0f, 1f)]
+    private float normalHitVolume = 0.6f;
+
+    [SerializeField, Range(0f, 1f)]
+    private float criticalHitVolume = 0.9f;
+
+    private AudioSource audioSource;
+    
     [Header("Particles")]
     [SerializeField]
     private ParticleSystem normalHitEffectPrefab;
@@ -31,6 +44,7 @@ public class HitFeedback : NetworkBehaviour
 
     private void Awake()
     {
+        audioSource = GetComponent<AudioSource>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         fighterHealth = GetComponent<FighterHealth>();
     }
@@ -67,25 +81,47 @@ public class HitFeedback : NetworkBehaviour
                 ? criticalHitEffectPrefab
                 : normalHitEffectPrefab;
 
-        if (selectedEffect == null)
-            return;
+        if (selectedEffect != null)
+        {
+            ParticleSystem effect = Instantiate(
+                selectedEffect,
+                hitPosition,
+                Quaternion.identity
+            );
 
-        ParticleSystem effect = Instantiate(
-            selectedEffect,
-            hitPosition,
-            Quaternion.identity
-        );
+            effect.Play();
 
-        effect.Play();
+            ParticleSystem.MainModule main =
+                effect.main;
 
-        ParticleSystem.MainModule main =
-            effect.main;
+            float destroyDelay =
+                main.duration +
+                main.startLifetime.constantMax;
 
-        float destroyDelay =
-            main.duration +
-            main.startLifetime.constantMax;
+            Destroy(
+                effect.gameObject,
+                destroyDelay
+            );
+        }
 
-        Destroy(effect.gameObject, destroyDelay);
+        AudioClip selectedClip =
+            isCritical
+                ? criticalHitClip
+                : normalHitClip;
+
+        float selectedVolume =
+            isCritical
+                ? criticalHitVolume
+                : normalHitVolume;
+
+        if (selectedClip != null &&
+            audioSource != null)
+        {
+            audioSource.PlayOneShot(
+                selectedClip,
+                selectedVolume
+            );
+        }
     }
 
     private IEnumerator FlashRoutine(bool isCritical)

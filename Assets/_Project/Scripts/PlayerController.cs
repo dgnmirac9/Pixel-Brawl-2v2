@@ -10,12 +10,20 @@ public class PlayerController : NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
+    
+    [SerializeField, Min(0f)]
+    private float acceleration = 25f;
+
+    [SerializeField, Min(0f)]
+    private float deceleration = 35f;
 
     [Header("Dash Settings")]
     [SerializeField] private float dashSpeed = 12f;
     [SerializeField] private float dashDuration = 0.2f;
     [SerializeField] private float dashCooldown = 0.8f;
-
+    [SerializeField, Min(0.01f)]
+    private float dashRecoveryDuration = 0.15f;
+    
     [Header("Combat Settings")]
     [SerializeField] private Transform attackPoint;      // Kılıç vuruş merkezinin noktası
     [SerializeField] private float attackRange = 0.5f;     // Vuruş alanının yarıçapı
@@ -51,11 +59,12 @@ public class PlayerController : NetworkBehaviour
     private NetworkAnimator networkAnimator;
     
     // Durumlar
-    private bool isKnockedBack;
+    private Vector2 currentMoveVelocity;
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.right;
     private bool isDashing = false;
     private bool canDash = true;
+    private bool isKnockedBack;
 
     
     private NetworkVariable<Vector2> networkAimDirection =
@@ -140,16 +149,38 @@ public class PlayerController : NetworkBehaviour
         {
             return;
         }
+
+        Vector2 targetVelocity =
+            moveInput * moveSpeed;
+
+        bool hasMovementInput =
+            moveInput.sqrMagnitude > 0.001f;
+
+        float velocityChangeRate =
+            hasMovementInput
+                ? acceleration
+                : deceleration;
+
+        currentMoveVelocity =
+            Vector2.MoveTowards(
+                currentMoveVelocity,
+                targetVelocity,
+                velocityChangeRate *
+                Time.fixedDeltaTime
+            );
+
         rb.MovePosition(
-            rb.position + moveInput * (moveSpeed * Time.fixedDeltaTime)
+            rb.position +
+            currentMoveVelocity *
+            Time.fixedDeltaTime
         );
     }
-
     private void UpdateAnimations()
     {
         if (anim == null) return;
 
-        float speed = moveInput.magnitude;
+        float speed =
+            currentMoveVelocity.magnitude;
 
         // Karakterin karada olduğunu belirtiyoruz (Şart olan parametre)
         anim.SetBool("Grounded", true);
@@ -206,6 +237,7 @@ public class PlayerController : NetworkBehaviour
 
             moveInput = Vector2.zero;
             rb.linearVelocity = Vector2.zero;
+            currentMoveVelocity = Vector2.zero;
 
             isDashing = false;
             isKnockedBack = false;
@@ -230,7 +262,8 @@ public class PlayerController : NetworkBehaviour
     {
         moveInput = Vector2.zero;
         rb.linearVelocity = Vector2.zero;
-
+        currentMoveVelocity = Vector2.zero;
+        
         rb.position = new Vector2(
             targetPosition.x,
             targetPosition.y
@@ -274,39 +307,86 @@ public class PlayerController : NetworkBehaviour
     
     private IEnumerator PerformDash()
     {
-    canDash = false;
-    isDashing = true;
+        canDash = false;
+        isDashing = true;
 
-    if (networkAnimator != null && IsSpawned)
-    {
-        networkAnimator.SetTrigger("Roll");
-    }
-    else if (anim != null)
-    {
-        anim.SetTrigger("Roll");
-    }
+        if (networkAnimator != null && IsSpawned)
+        {
+            networkAnimator.SetTrigger("Roll");
+        }
+        else if (anim != null)
+        {
+            anim.SetTrigger("Roll");
+        }
 
-    Vector2 dashDirection =
-        moveInput != Vector2.zero
-            ? moveInput.normalized
-            : lastMoveDirection.normalized;
+        Vector2 dashDirection =
+            moveInput != Vector2.zero
+                ? moveInput.normalized
+                : lastMoveDirection.normalized;
 
-    float elapsedTime = 0f;
+        currentMoveVelocity = Vector2.zero;
 
-    while (elapsedTime < dashDuration)
-    {
-        rb.linearVelocity = dashDirection * dashSpeed;
+        Vector2 dashVelocity =
+            dashDirection * dashSpeed;
 
-        yield return new WaitForFixedUpdate();
-        elapsedTime += Time.fixedDeltaTime;
-    }
+        float elapsedTime = 0f;
 
-    rb.linearVelocity = Vector2.zero;
-    isDashing = false;
+        // Tam hızlı dash bölümü.
+        while (elapsedTime < dashDuration)
+        {
+            rb.linearVelocity =
+                dashVelocity;
 
-    yield return new WaitForSeconds(dashCooldown);
+            yield return new WaitForFixedUpdate();
 
-    canDash = true;
+            elapsedTime += Time.fixedDeltaTime;
+        }
+
+        // Dash sonrasında ulaşılacak normal hareket hızı.
+        Vector2 recoveryTargetVelocity =
+            moveInput * moveSpeed;
+
+        float recoveryElapsed = 0f;
+
+        // Dash hızından normal hıza yumuşak geçiş.
+        while (recoveryElapsed <
+               dashRecoveryDuration)
+        {
+            float transition =
+                recoveryElapsed /
+                dashRecoveryDuration;
+
+            transition = Mathf.SmoothStep(
+                0f,
+                1f,
+                transition
+            );
+
+            rb.linearVelocity =
+                Vector2.Lerp(
+                    dashVelocity,
+                    recoveryTargetVelocity,
+                    transition
+                );
+
+            yield return new WaitForFixedUpdate();
+
+            recoveryElapsed +=
+                Time.fixedDeltaTime;
+        }
+
+        // Normal hareket sistemine aynı hızla devret.
+        currentMoveVelocity =
+            recoveryTargetVelocity;
+
+        rb.linearVelocity = Vector2.zero;
+        isDashing = false;
+
+        yield return new WaitForSeconds(
+            dashCooldown
+        );
+
+        canDash = true;
     }
     
     public override void OnNetworkSpawn()
@@ -558,8 +638,9 @@ public class PlayerController : NetworkBehaviour
         StopAllCoroutines();
 
         moveInput = Vector2.zero;
-        rb.linearVelocity = Vector2.zero;
-
+        rb.linearVelocity = Vector2.zero;   
+        currentMoveVelocity = Vector2.zero;
+        
         isDashing = false;
         canDash = true;
 

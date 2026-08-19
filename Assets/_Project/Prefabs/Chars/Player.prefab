@@ -216,9 +216,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
   moveSpeed: 5
+  acceleration: 35
+  deceleration: 50
   dashSpeed: 12
   dashDuration: 0.2
   dashCooldown: 0.8
+  dashRecoveryDuration: 0.15
   attackPoint: {fileID: 4165618851114007944}
   attackRange: 0.5
   attackDamage: 20

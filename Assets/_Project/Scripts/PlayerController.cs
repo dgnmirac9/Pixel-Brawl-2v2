@@ -25,6 +25,20 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float attackCooldown = 0.4f;
     private float nextAttackTime = 0f;
     
+    [Header("Critical Hit Settings")]
+    [SerializeField, Range(0f, 1f)]
+    private float criticalChance = 0.15f;
+
+    [SerializeField, Min(1f)]
+    private float criticalDamageMultiplier = 1.5f;
+    
+    [Header("Critical Knockback Settings")]
+    [SerializeField, Min(0f)]
+    private float criticalKnockbackDistance = 1.8f;
+
+    [SerializeField, Min(0.01f)]
+    private float criticalKnockbackDuration = 0.18f;
+    
     // Referanslar
     private bool canControl = true;
     private Rigidbody2D rb;
@@ -37,6 +51,7 @@ public class PlayerController : NetworkBehaviour
     private NetworkAnimator networkAnimator;
     
     // Durumlar
+    private bool isKnockedBack;
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.right;
     private bool isDashing = false;
@@ -77,8 +92,15 @@ public class PlayerController : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsOwner || !canControl) return; 
-        if (isDashing) return;
+        if (!IsOwner ||
+            !canControl ||
+            isKnockedBack)
+        {
+            return;
+        }
+
+        if (isDashing)
+            return;
 
         // Girdiler (WASD / Yön Tuşları)
         moveInput.x = Input.GetAxisRaw("Horizontal");
@@ -111,8 +133,13 @@ public class PlayerController : NetworkBehaviour
 
     private void FixedUpdate()
     {
-        if (!IsOwner || !canControl || isDashing) return;
-
+        if (!IsOwner ||
+            !canControl ||
+            isDashing ||
+            isKnockedBack)
+        {
+            return;
+        }
         rb.MovePosition(
             rb.position + moveInput * (moveSpeed * Time.fixedDeltaTime)
         );
@@ -181,6 +208,7 @@ public class PlayerController : NetworkBehaviour
             rb.linearVelocity = Vector2.zero;
 
             isDashing = false;
+            isKnockedBack = false;
             canDash = true;
         }
     }
@@ -381,7 +409,18 @@ public class PlayerController : NetworkBehaviour
         Vector2 attackCenter =
             (Vector2)aimOrigin.position +
             attackDirection * attackPointDistance;
+        
+        bool isCritical =
+            UnityEngine.Random.value < criticalChance;
 
+        int resolvedDamage =
+            isCritical
+                ? Mathf.RoundToInt(
+                    attackDamage *
+                    criticalDamageMultiplier
+                )
+                : attackDamage;
+        
         Collider2D[] hitColliders =
             Physics2D.OverlapCircleAll(
                 attackCenter,
@@ -413,7 +452,37 @@ public class PlayerController : NetworkBehaviour
                 if (!damagedFighters.Add(fighter))
                     continue;
 
-                fighter.TakeDamage(attackDamage);
+                Vector2 hitPosition =
+                    hit.ClosestPoint(attackCenter);
+                
+                fighter.TakeDamage(
+                    resolvedDamage,
+                    hitPosition,
+                    isCritical
+                );
+
+                if (isCritical && fighter.IsAlive)
+                {
+                    PlayerController targetController =
+                        fighter.GetComponent<PlayerController>();
+
+                    Vector2 knockbackDirection =
+                        (Vector2)fighter.transform.position -
+                        (Vector2)transform.position;
+
+                    if (knockbackDirection == Vector2.zero)
+                    {
+                        knockbackDirection =
+                            attackDirection;
+                    }
+
+                    targetController?.ServerApplyKnockback(
+                        knockbackDirection.normalized,
+                        criticalKnockbackDistance,
+                        criticalKnockbackDuration
+                    );
+                }
+                
                 continue;
             }
 
@@ -427,7 +496,7 @@ public class PlayerController : NetworkBehaviour
                 continue;
 
             enemy.TakeDamage(
-                attackDamage,
+                resolvedDamage,
                 transform.position
             );
         }
@@ -461,5 +530,72 @@ public class PlayerController : NetworkBehaviour
         {
             spriteRenderer.flipX = true;
         }
+    }
+    public void ServerApplyKnockback(
+        Vector2 direction,
+        float distance,
+        float duration)
+    {
+        if (!IsServer || !IsSpawned)
+            return;
+
+        if (direction == Vector2.zero)
+            return;
+
+        ApplyKnockbackRpc(
+            direction.normalized,
+            Mathf.Max(0f, distance),
+            Mathf.Max(0.01f, duration)
+        );
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void ApplyKnockbackRpc(
+        Vector2 direction,
+        float distance,
+        float duration)
+    {
+        StopAllCoroutines();
+
+        moveInput = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
+
+        isDashing = false;
+        canDash = true;
+
+        StartCoroutine(
+            PerformKnockback(
+                direction,
+                distance,
+                duration
+            )
+        );
+    }
+
+    private IEnumerator PerformKnockback(
+        Vector2 direction,
+        float distance,
+        float duration)
+    {
+        isKnockedBack = true;
+
+        float knockbackSpeed =
+            distance / duration;
+
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            rb.linearVelocity =
+                direction.normalized *
+                knockbackSpeed;
+
+            yield return new WaitForFixedUpdate();
+
+            elapsedTime += Time.fixedDeltaTime;
+        }
+
+        rb.linearVelocity = Vector2.zero;
+        isKnockedBack = false;
     }
 }

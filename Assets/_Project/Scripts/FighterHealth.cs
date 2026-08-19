@@ -31,6 +31,7 @@ public class FighterHealth : NetworkBehaviour
     private SpriteRenderer spriteRenderer;
     private Collider2D[] fighterColliders;
     private Color originalColor;
+    private HitFeedback hitFeedback;
     
     public int CurrentHealth => currentHealth.Value;
     public bool IsAlive => isAlive.Value;
@@ -38,6 +39,7 @@ public class FighterHealth : NetworkBehaviour
     
     private void Awake()
     {
+        hitFeedback = GetComponent<HitFeedback>();
         playerController = GetComponent<PlayerController>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         fighterColliders = GetComponentsInChildren<Collider2D>(true);
@@ -89,8 +91,42 @@ public class FighterHealth : NetworkBehaviour
             MatchManager.Instance.UnregisterFighter(this);
         }
     }
+    
+    public void RestoreCurrentVisualColor()
+    {
+        if (spriteRenderer == null)
+            return;
 
+        spriteRenderer.color =
+            isAlive.Value
+                ? originalColor
+                : defeatedColor;
+    }
+    
     public void TakeDamage(int damageAmount)
+    {
+        TakeDamage(
+            damageAmount,
+            transform.position,
+            false
+        );
+    }
+
+    public void TakeDamage(
+        int damageAmount,
+        Vector2 hitPosition)
+    {
+        TakeDamage(
+            damageAmount,
+            hitPosition,
+            false
+        );
+    }
+
+    public void TakeDamage(
+        int damageAmount,
+        Vector2 hitPosition,
+        bool isCritical)
     {
         if (!IsServer)
             return;
@@ -108,15 +144,24 @@ public class FighterHealth : NetworkBehaviour
 
         Debug.Log(
             $"{gameObject.name} hasar aldı. " +
+            $"Hasar: {damageAmount} | " +
+            $"Kritik: {isCritical} | " +
             $"Kalan can: {currentHealth.Value}"
         );
 
-        if (currentHealth.Value <= 0 && isAlive.Value)
+        if (currentHealth.Value <= 0 &&
+            isAlive.Value)
         {
             isAlive.Value = false;
 
-            MatchManager.Instance?.NotifyFighterDefeated(this);
+            MatchManager.Instance?
+                .NotifyFighterDefeated(this);
         }
+
+        hitFeedback?.PlayOnServer(
+            hitPosition,
+            isCritical
+        );
     }
 
     public void ResetFighter()
@@ -182,8 +227,7 @@ public class FighterHealth : NetworkBehaviour
 
         if (spriteRenderer != null)
         {
-            spriteRenderer.color =
-                alive ? originalColor : defeatedColor;
+            RestoreCurrentVisualColor();
         }
     }
 }

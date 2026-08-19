@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: -674589583868899676}
   - component: {fileID: -399278980200309509}
   - component: {fileID: -8034979978054430057}
+  - component: {fileID: 5616529614960451991}
   m_Layer: 20
   m_Name: Player
   m_TagString: Player
@@ -187,7 +188,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3350170584
+  GlobalObjectIdHash: 338540577
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -222,6 +223,10 @@ MonoBehaviour:
   attackRange: 0.5
   attackDamage: 20
   attackCooldown: 0.4
+  criticalChance: 0.15
+  criticalDamageMultiplier: 1.5
+  criticalKnockbackDistance: 1.8
+  criticalKnockbackDuration: 0.18
   aimOrigin: {fileID: 962001276400387307}
 --- !u!95 &191361030810674886
 Animator:
@@ -400,6 +405,26 @@ MonoBehaviour:
   maxHealth: 100
   healthBar: {fileID: 267674353074517360}
   defeatedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+--- !u!114 &5616529614960451991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1021926522085015075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 458333cf1d0f8483ba3e1dbcef6272ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitFeedback
+  ShowTopMostFoldoutHeaderGroup: 1
+  normalFlashColor: {r: 1, g: 0.4, b: 0.25, a: 1}
+  criticalFlashColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+  flashDuration: 0.08
+  normalHitEffectPrefab: {fileID: 7874513501100868755, guid: 18c8b7374b3b74541aede176af97e720,
+    type: 3}
+  criticalHitEffectPrefab: {fileID: 7874513501100868755, guid: c509affcaafac4eac9df87ee8af19be2,
+    type: 3}
 --- !u!1 &1812284966174629527
 GameObject:
   m_ObjectHideFlags: 0

@@ -227,7 +227,7 @@ MonoBehaviour:
   attackRange: 0.5
   attackDamage: 20
   attackCooldown: 0.4
-  criticalChance: 1
+  criticalChance: 0.15
   criticalDamageMultiplier: 1.5
   criticalKnockbackDistance: 1.8
   criticalKnockbackDuration: 0.18

@@ -246,6 +246,7 @@ public class MatchManager : NetworkBehaviour
     private IEnumerator RestartRound()
     {
         yield return new WaitForSeconds(roundRestartDelay);
+        ResetBreakableObjects();
 
         fighters.RemoveAll(fighter => fighter == null);
 
@@ -311,7 +312,30 @@ public class MatchManager : NetworkBehaviour
                 controller.ServerSetControlEnabled(controlEnabled);
         }
     }
+    
+    private void ResetBreakableObjects()
+    {
+        if (!IsServer)
+            return;
 
+        BreakableObject[] breakableObjects =
+            FindObjectsByType<BreakableObject>(
+                FindObjectsSortMode.None
+            );
+
+        foreach (BreakableObject breakable
+                 in breakableObjects)
+        {
+            if (breakable == null ||
+                !breakable.IsSpawned)
+            {
+                continue;
+            }
+
+            breakable.ResetOnServer();
+        }
+    }
+    
     private void OnDestroy()
     {
         if (Instance == this)

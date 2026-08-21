@@ -1,11 +1,20 @@
 using Unity.Netcode;
 using UnityEngine;
 
+[RequireComponent(typeof(AudioSource))]
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(Collider2D))]
 public class BreakableObject : NetworkBehaviour
 {
+    [Header("Audio")]
+    [SerializeField] private AudioClip breakSound;
+
+    [SerializeField, Range(0f, 1f)]
+    private float breakSoundVolume = 0.8f;
+
+    private AudioSource audioSource;
+    
     [Header("Visuals")]
     [SerializeField] private Sprite intactSprite;
     [SerializeField] private Sprite brokenSprite;
@@ -27,6 +36,8 @@ public class BreakableObject : NetworkBehaviour
 
     private void Awake()
     {
+        audioSource = GetComponent<AudioSource>();
+        
         spriteRenderer =
             GetComponent<SpriteRenderer>();
 
@@ -116,33 +127,33 @@ public class BreakableObject : NetworkBehaviour
     private void PlayBreakEffectRpc(
         Vector2 impactPoint)
     {
-        if (breakEffectPrefab == null)
-            return;
-
-        ParticleSystem effect = Instantiate(
-            breakEffectPrefab,
-            impactPoint,
-            Quaternion.identity
-        );
-
-        effect.Play();
-
-        ParticleSystem.MainModule main =
-            effect.main;
-
-        Destroy(
-            effect.gameObject,
-            main.duration +
-            main.startLifetime.constantMax
-        );
-    }
-
-    [ContextMenu("Test Break")]
-    private void TestBreak()
-    {
-        if (Application.isPlaying)
+        if (breakEffectPrefab != null)
         {
-            BreakOnServer(transform.position);
+            ParticleSystem effect = Instantiate(
+                breakEffectPrefab,
+                impactPoint,
+                Quaternion.identity
+            );
+
+            effect.Play();
+
+            ParticleSystem.MainModule main =
+                effect.main;
+
+            Destroy(
+                effect.gameObject,
+                main.duration +
+                main.startLifetime.constantMax
+            );
+        }
+
+        if (breakSound != null &&
+            audioSource != null)
+        {
+            audioSource.PlayOneShot(
+                breakSound,
+                breakSoundVolume
+            );
         }
     }
 }

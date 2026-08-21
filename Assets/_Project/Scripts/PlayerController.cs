@@ -664,11 +664,6 @@ public class PlayerController : NetworkBehaviour
     private void OnCollisionEnter2D(
         Collision2D collision)
     {
-        Debug.Log(
-            $"[Collision] {name} → " +
-            $"{collision.collider.name}"
-        );
-        
         if (!IsOwner ||
             !IsSpawned ||
             !isKnockedBack)

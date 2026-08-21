@@ -37,7 +37,15 @@ public class HitFeedback : NetworkBehaviour
 
     [SerializeField]
     private ParticleSystem criticalHitEffectPrefab;
+    
+    [Header("Critical Text")]
+    [SerializeField]
+    private GameObject criticalTextEffectPrefab;
 
+    [SerializeField]
+    private Vector2 criticalTextOffset =
+        new Vector2(0f, 0.65f);
+    
     private SpriteRenderer spriteRenderer;
     private FighterHealth fighterHealth;
     private Coroutine flashRoutine;
@@ -101,6 +109,16 @@ public class HitFeedback : NetworkBehaviour
             Destroy(
                 effect.gameObject,
                 destroyDelay
+            );
+        }
+        
+        if (isCritical &&
+            criticalTextEffectPrefab != null)
+        {
+            Instantiate(
+                criticalTextEffectPrefab,
+                hitPosition + criticalTextOffset,
+                Quaternion.identity
             );
         }
 

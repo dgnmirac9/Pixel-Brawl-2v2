@@ -227,7 +227,7 @@ MonoBehaviour:
   attackRange: 0.5
   attackDamage: 20
   attackCooldown: 0.4
-  criticalChance: 1
+  criticalChance: 0.663
   criticalDamageMultiplier: 1.5
   criticalKnockbackDistance: 1.8
   criticalKnockbackDuration: 0.18
@@ -426,14 +426,17 @@ MonoBehaviour:
   normalFlashColor: {r: 1, g: 0.4, b: 0.25, a: 1}
   criticalFlashColor: {r: 1, g: 0.85, b: 0.2, a: 1}
   flashDuration: 0.08
-  normalHitClip: {fileID: 0}
-  criticalHitClip: {fileID: 0}
-  normalHitVolume: 0.6
-  criticalHitVolume: 0.9
+  normalHitClip: {fileID: 8300000, guid: 75150375cf973482da1d8e43d847d545, type: 3}
+  criticalHitClip: {fileID: 8300000, guid: 8633401ddf41946f8b2f58f6ab5f21c6, type: 3}
+  normalHitVolume: 0.2
+  criticalHitVolume: 0.35
   normalHitEffectPrefab: {fileID: 7874513501100868755, guid: 18c8b7374b3b74541aede176af97e720,
     type: 3}
   criticalHitEffectPrefab: {fileID: 7874513501100868755, guid: c509affcaafac4eac9df87ee8af19be2,
     type: 3}
+  criticalTextEffectPrefab: {fileID: 4154650297673547827, guid: 1da8bc0957c7d408d9123f5cd2f58333,
+    type: 3}
+  criticalTextOffset: {x: 0, y: 0.45}
 --- !u!82 &459177373837067210
 AudioSource:
   m_ObjectHideFlags: 0
@@ -446,7 +449,7 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 0

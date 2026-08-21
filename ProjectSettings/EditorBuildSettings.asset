@@ -8,5 +8,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/ThirdParty/Cainos/Pixel Art Top Down - Basic/Scene/SC Demo.unity
     guid: 8c13838df8e680749ae1bb30cfe63339
+  - enabled: 1
+    path: Assets/_Project/Scenes/DungeonArena.unity
+    guid: 3bf3f2d0e070a4674bb7354e14ae5424
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

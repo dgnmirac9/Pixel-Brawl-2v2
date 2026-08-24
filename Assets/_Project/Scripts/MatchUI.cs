@@ -4,6 +4,13 @@ using UnityEngine;
 
 public class MatchUI : MonoBehaviour
 {
+    [Header("Countdown")]
+    [SerializeField]
+    private GameObject countdownPanel;
+
+    [SerializeField]
+    private TMP_Text countdownText;
+    
     [Header("Score UI")]
     [SerializeField] private TMP_Text team0ScoreText;
     [SerializeField] private TMP_Text roundText;
@@ -63,6 +70,26 @@ public class MatchUI : MonoBehaviour
         {
             resultText.text =
                 $"TEAM {matchManager.WinningTeamId + 1} WINS!";
+        }
+        bool showCountdown =
+            matchManager.CurrentPhase ==
+            MatchPhase.Countdown;
+
+        if (countdownPanel != null)
+        {
+            countdownPanel.SetActive(
+                showCountdown
+            );
+        }
+
+        if (countdownText != null &&
+            showCountdown)
+        {
+            countdownText.text =
+                matchManager.CountdownValue > 0
+                    ? matchManager.CountdownValue
+                        .ToString()
+                    : "FIGHT!";
         }
     }
 

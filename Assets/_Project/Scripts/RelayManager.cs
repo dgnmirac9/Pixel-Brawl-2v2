@@ -165,6 +165,8 @@ public class RelayManager : MonoBehaviour
                 SetStatus("Netcode Client başlatılamadı.");
                 return false;
             }
+            
+            CurrentJoinCode = joinCode;
 
             SetStatus("Client bağlantısı başlatıldı.");
 

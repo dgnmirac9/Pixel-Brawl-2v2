@@ -2,11 +2,14 @@ using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class ConnectionUI : MonoBehaviour
 {
     [Header("Panels")]
-    [SerializeField] private GameObject connectionPanel;
+    [SerializeField] private GameObject preGameRoot;
+    [SerializeField] private GameObject connectionView;
+    [SerializeField] private GameObject waitingRoomPanel;
     [SerializeField] private GameObject matchCanvas;
 
     [Header("Connection Controls")]
@@ -20,6 +23,8 @@ public class ConnectionUI : MonoBehaviour
     [SerializeField] private TMP_Text generatedCodeText;
     [SerializeField] private TMP_Text statusText;
 
+    private LobbyManager lobbyManager;
+    private Coroutine lobbyInitializationRoutine;
     private RelayManager relayManager;
     private NetworkManager networkManager;
 
@@ -91,8 +96,9 @@ public class ConnectionUI : MonoBehaviour
     {
         if (relayManager == null ||
             networkManager == null ||
-            !networkManager.IsHost ||
-            string.IsNullOrEmpty(relayManager.CurrentJoinCode))
+            !networkManager.IsListening ||
+            string.IsNullOrEmpty(
+                relayManager.CurrentJoinCode))
         {
             SetStatus("NO JOIN CODE TO COPY");
             return;
@@ -159,24 +165,24 @@ public class ConnectionUI : MonoBehaviour
         if (networkManager == null)
             return;
 
-        // Host başlatıldığında Host'un kendi yerel Client'ı
-        // hemen bağlanır. Menüyü henüz kapatmıyoruz çünkü
-        // join code'u diğer oyuncuyla paylaşması gerekiyor.
         bool isHostsLocalClient =
             networkManager.IsHost &&
             clientId == networkManager.LocalClientId;
 
         if (isHostsLocalClient)
         {
-            SetStatus("HOST READY - WAITING FOR PLAYER");
-
-            if (disconnectButton != null)
-                disconnectButton.gameObject.SetActive(true);
-
-            return;
+            SetStatus(
+                "HOST READY - WAITING ROOM"
+            );
+        }
+        else
+        {
+            SetStatus(
+                "CONNECTED - WAITING ROOM"
+            );
         }
 
-        EnterGame();
+        BeginWaitingRoomTransition();
     }
 
     private void HandleClientDisconnected(ulong clientId)
@@ -226,36 +232,131 @@ public class ConnectionUI : MonoBehaviour
         RefreshJoinButton();
     }
 
-    private void EnterGame()
+    private void BeginWaitingRoomTransition()
     {
-        if (connectionPanel != null)
-            connectionPanel.SetActive(false);
+        if (lobbyInitializationRoutine != null)
+            return;
 
-        if (matchCanvas != null)
-            matchCanvas.SetActive(true);
-
-        if (disconnectButton != null)
-            disconnectButton.gameObject.SetActive(true);
-
-        SetStatus("CONNECTED");
-
-        Debug.Log("[ConnectionUI] Oyun bağlantısı tamamlandı.");
+        lobbyInitializationRoutine =
+            StartCoroutine(
+                EnterWaitingRoomWhenReady()
+            );
     }
 
-    private void ShowConnectionMenu()
+    private IEnumerator EnterWaitingRoomWhenReady()
     {
-        if (connectionPanel != null)
-            connectionPanel.SetActive(true);
+        while (networkManager != null &&
+               networkManager.IsListening &&
+               (LobbyManager.Instance == null ||
+                !LobbyManager.Instance.IsSpawned))
+        {
+            yield return null;
+        }
+
+        lobbyInitializationRoutine = null;
+
+        if (networkManager == null ||
+            !networkManager.IsListening ||
+            LobbyManager.Instance == null ||
+            !LobbyManager.Instance.IsSpawned)
+        {
+            yield break;
+        }
+
+        if (lobbyManager != null)
+        {
+            lobbyManager.MatchStarted -=
+                EnterGame;
+        }
+
+        lobbyManager = LobbyManager.Instance;
+
+        lobbyManager.MatchStarted -=
+            EnterGame;
+
+        lobbyManager.MatchStarted +=
+            EnterGame;
+
+        ShowWaitingRoom();
+
+        if (lobbyManager.HasMatchStarted)
+            EnterGame();
+    }
+
+    private void ShowWaitingRoom()
+    {
+        if (preGameRoot != null)
+            preGameRoot.SetActive(true);
+
+        if (connectionView != null)
+            connectionView.SetActive(false);
+
+        if (waitingRoomPanel != null)
+            waitingRoomPanel.SetActive(true);
 
         if (matchCanvas != null)
             matchCanvas.SetActive(false);
 
         if (disconnectButton != null)
-            disconnectButton.gameObject.SetActive(false);
+        {
+            disconnectButton.gameObject.SetActive(
+                true
+            );
+        }
+    }
+    
+    private void EnterGame()
+    {
+        if (connectionView != null)
+            connectionView.SetActive(false);
+
+        if (waitingRoomPanel != null)
+            waitingRoomPanel.SetActive(false);
+
+        if (preGameRoot != null)
+            preGameRoot.SetActive(false);
+
+        if (matchCanvas != null)
+            matchCanvas.SetActive(true);
+
+        if (disconnectButton != null)
+        {
+            disconnectButton.gameObject.SetActive(
+                true
+            );
+        }
+
+        SetStatus("MATCH STARTED");
+
+        Debug.Log(
+            "[ConnectionUI] Waiting Room tamamlandı."
+        );
+    }
+
+    private void ShowConnectionMenu()
+    {
+        if (preGameRoot != null)
+            preGameRoot.SetActive(true);
+
+        if (connectionView != null)
+            connectionView.SetActive(true);
+
+        if (waitingRoomPanel != null)
+            waitingRoomPanel.SetActive(false);
+
+        if (matchCanvas != null)
+            matchCanvas.SetActive(false);
+
+        if (disconnectButton != null)
+        {
+            disconnectButton.gameObject.SetActive(
+                false
+            );
+        }
 
         if (generatedCodeText != null)
             generatedCodeText.text = "JOIN CODE: -";
-        
+
         if (copyCodeButton != null)
             copyCodeButton.interactable = false;
     }
@@ -303,8 +404,6 @@ public class ConnectionUI : MonoBehaviour
         if (copyCodeButton != null)
         {
             copyCodeButton.interactable =
-                networkManager != null &&
-                networkManager.IsHost &&
                 networkRunning &&
                 !string.IsNullOrEmpty(joinCode);
         }
@@ -448,6 +547,12 @@ public class ConnectionUI : MonoBehaviour
             copyCodeButton.onClick.RemoveListener(
                 HandleCopyCodeClicked
             );
+        }
+        
+        if (lobbyManager != null)
+        {
+            lobbyManager.MatchStarted -=
+                EnterGame;
         }
     }
 }

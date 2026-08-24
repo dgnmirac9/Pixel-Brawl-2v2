@@ -7,6 +7,16 @@ using UnityEngine;
 public class MatchManager : NetworkBehaviour
 {
     public static MatchManager Instance { get; private set; }
+    
+    [Header("Countdown Settings")]
+    [SerializeField, Min(1)]
+    private int initialCountdownSeconds = 3;
+
+    [SerializeField, Min(1)]
+    private int roundCountdownSeconds = 2;
+
+    [SerializeField, Min(0f)]
+    private float roundEndPauseDuration = 1f;
 
     [Header("Match Settings")]
     [SerializeField, Min(1)] private int roundsToWin = 3;
@@ -16,6 +26,20 @@ public class MatchManager : NetworkBehaviour
 
     private readonly List<FighterHealth> fighters = new();
     private bool roundEnding;
+
+    private readonly NetworkVariable<int>
+        countdownValue = new(
+            0,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
+    
+    private readonly NetworkVariable<MatchPhase>
+        currentPhase = new(
+            MatchPhase.Lobby,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
     
     private readonly NetworkVariable<bool> matchEnded = new(
         false,
@@ -46,7 +70,15 @@ public class MatchManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
     
+
     public event Action MatchStateChanged;
+    public MatchPhase CurrentPhase =>
+        currentPhase.Value;
+    public int CountdownValue =>
+        countdownValue.Value;
+    public bool IsCombatActive =>
+        currentPhase.Value ==
+        MatchPhase.Combat;
     public int Team0Score => team0Score.Value;
     public int Team1Score => team1Score.Value;
     public int RoundNumber => roundNumber.Value;
@@ -88,6 +120,10 @@ public class MatchManager : NetworkBehaviour
     
     public override void OnNetworkSpawn()
     {
+        countdownValue.OnValueChanged +=
+            OnIntegerMatchStateChanged;
+        currentPhase.OnValueChanged +=
+            OnMatchPhaseChanged;
         team0Score.OnValueChanged += OnIntegerMatchStateChanged;
         team1Score.OnValueChanged += OnIntegerMatchStateChanged;
         roundNumber.OnValueChanged += OnIntegerMatchStateChanged;
@@ -101,6 +137,11 @@ public class MatchManager : NetworkBehaviour
         if (!IsServer)
             return;
 
+        countdownValue.Value = 0;
+        
+        currentPhase.Value =
+            MatchPhase.Lobby;
+        
         team0Score.Value = 0;
         team1Score.Value = 0;
         roundNumber.Value = 1;
@@ -127,11 +168,122 @@ public class MatchManager : NetworkBehaviour
     
     public override void OnNetworkDespawn()
     {
+        countdownValue.OnValueChanged -=
+            OnIntegerMatchStateChanged;
+        currentPhase.OnValueChanged -=
+            OnMatchPhaseChanged;
         team0Score.OnValueChanged -= OnIntegerMatchStateChanged;
         team1Score.OnValueChanged -= OnIntegerMatchStateChanged;
         roundNumber.OnValueChanged -= OnIntegerMatchStateChanged;
         winningTeamId.OnValueChanged -= OnIntegerMatchStateChanged;
         matchEnded.OnValueChanged -= OnBooleanMatchStateChanged;
+    }
+    
+    public bool ServerBeginMatch()
+    {
+        if (!IsServer)
+            return false;
+
+        if (currentPhase.Value !=
+            MatchPhase.Lobby)
+        {
+            return false;
+        }
+
+        roundEnding = true;
+
+        PrepareFightersForRound();
+
+        StartCoroutine(
+            RunCountdown(
+                initialCountdownSeconds
+            )
+        );
+
+        Debug.Log(
+            "Waiting Room tamamlandı. " +
+            "Maç sayacı başladı."
+        );
+
+        return true;
+    }
+    private IEnumerator RunCountdown(
+        int countdownSeconds)
+    {
+        currentPhase.Value =
+            MatchPhase.Countdown;
+
+        SetAllFighterControls(false);
+
+        for (int seconds = countdownSeconds;
+             seconds > 0;
+             seconds--)
+        {
+            countdownValue.Value = seconds;
+
+            yield return new WaitForSeconds(1f);
+        }
+
+        // UI bu değerde FIGHT! gösterecek.
+        countdownValue.Value = 0;
+
+        yield return new WaitForSeconds(0.4f);
+
+        currentPhase.Value =
+            MatchPhase.Combat;
+
+        roundEnding = false;
+
+        SetAllFighterControls(true);
+
+        Debug.Log(
+            $"Round {roundNumber.Value} başladı."
+        );
+    }
+    private void PrepareFightersForRound()
+    {
+        if (!IsServer)
+            return;
+
+        fighters.RemoveAll(
+            fighter => fighter == null
+        );
+
+        foreach (FighterHealth fighter
+                 in fighters)
+        {
+            if (fighter == null)
+                continue;
+
+            fighter.ResetFighter();
+
+            PlayerController controller =
+                fighter.GetComponent<
+                    PlayerController>();
+
+            if (controller == null)
+                continue;
+
+            if (PlayerSpawnManager.Instance !=
+                null)
+            {
+                Vector3 spawnPosition =
+                    PlayerSpawnManager.Instance
+                        .GetSpawnPosition(
+                            fighter.OwnerClientId
+                        );
+
+                controller.ServerMoveToSpawn(
+                    spawnPosition
+                );
+            }
+
+            // ResetFighter kontrolü kısa süreliğine
+            // açabileceği için yeniden kapatıyoruz.
+            controller.ServerSetControlEnabled(
+                false
+            );
+        }
     }
     
     public void RegisterFighter(FighterHealth fighter)
@@ -141,6 +293,21 @@ public class MatchManager : NetworkBehaviour
 
         if (!fighters.Contains(fighter))
             fighters.Add(fighter);
+        
+        PlayerController controller =
+            fighter.GetComponent<PlayerController>();
+
+        if (controller != null)
+        {
+            bool canControl =
+                currentPhase.Value ==
+                MatchPhase.Combat &&
+                fighter.IsAlive;
+
+            controller.ServerSetControlEnabled(
+                canControl
+            );
+        }
     }
 
     public void UnregisterFighter(FighterHealth fighter)
@@ -184,6 +351,9 @@ public class MatchManager : NetworkBehaviour
         }
 
         roundEnding = true;
+        
+        currentPhase.Value =
+            MatchPhase.RoundEnding;
 
         int winnerId = defeatedTeam == 0 ? 1 : 0;
 
@@ -203,7 +373,9 @@ public class MatchManager : NetworkBehaviour
         {
             winningTeamId.Value = winnerId;
             matchEnded.Value = true;
-
+            currentPhase.Value =
+                MatchPhase.MatchEnded;
+            
             NotifyMatchStateChanged();
             
             Debug.Log(
@@ -224,7 +396,14 @@ public class MatchManager : NetworkBehaviour
 
         StartCoroutine(RestartRound());
     }
-
+    
+    private void OnMatchPhaseChanged(
+        MatchPhase previousPhase,
+        MatchPhase newPhase)
+    {
+        NotifyMatchStateChanged();
+    }
+    
     private bool IsTeamEliminated(int teamId)
     {
         bool teamMemberFound = false;
@@ -245,57 +424,19 @@ public class MatchManager : NetworkBehaviour
 
     private IEnumerator RestartRound()
     {
-        yield return new WaitForSeconds(roundRestartDelay);
+        yield return new WaitForSeconds(
+            roundEndPauseDuration
+        );
+
         ResetBreakableObjects();
 
-        fighters.RemoveAll(fighter => fighter == null);
-
-        foreach (FighterHealth fighter in fighters)
-        {
-            if (fighter == null)
-                continue;
-
-            Debug.Log(
-                $"Reset işlemi başlıyor. " +
-                $"ClientId: {fighter.OwnerClientId} | " +
-                $"Takım: {fighter.TeamId}"
-            );
-
-            // Can reseti diğer component kontrollerinden önce yapılmalı.
-            fighter.ResetFighter();
-
-            PlayerController controller =
-                fighter.GetComponent<PlayerController>();
-
-            if (controller == null)
-            {
-                Debug.LogError(
-                    $"ClientId {fighter.OwnerClientId}: " +
-                    $"PlayerController bulunamadı."
-                );
-
-                continue;
-            }
-
-            if (PlayerSpawnManager.Instance == null)
-            {
-                Debug.LogError("PlayerSpawnManager bulunamadı.");
-                continue;
-            }
-
-            Vector3 spawnPosition =
-                PlayerSpawnManager.Instance.GetSpawnPosition(
-                    fighter.OwnerClientId
-                );
-
-            controller.ServerMoveToSpawn(spawnPosition);
-            controller.ServerSetControlEnabled(true);
-        }
-
         roundNumber.Value++;
-        roundEnding = false;
 
-        Debug.Log($"Round {roundNumber.Value} başladı.");
+        PrepareFightersForRound();
+
+        yield return RunCountdown(
+            roundCountdownSeconds
+        );
     }
 
     private void SetAllFighterControls(bool controlEnabled)

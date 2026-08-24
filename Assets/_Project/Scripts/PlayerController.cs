@@ -477,7 +477,13 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsServer)
             return;
-
+        
+        if (MatchManager.Instance == null ||
+            !MatchManager.Instance.IsCombatActive)
+        {
+            return;
+        }
+        
         // Server tarafında saldırı cooldown kontrolü.
         if (Time.time < nextServerAttackTime)
             return;

@@ -8,6 +8,10 @@ public class MatchManager : NetworkBehaviour
 {
     public static MatchManager Instance { get; private set; }
     
+    [Header("Preparation Settings")]
+    [SerializeField, Min(1)]
+    private int preparationDurationSeconds = 10;
+    
     [Header("Countdown Settings")]
     [SerializeField, Min(1)]
     private int initialCountdownSeconds = 3;
@@ -29,6 +33,12 @@ public class MatchManager : NetworkBehaviour
 
     private readonly NetworkVariable<int>
         countdownValue = new(
+            0,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
+    private readonly NetworkVariable<int>
+        preparationTimeRemaining = new(
             0,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
@@ -76,6 +86,8 @@ public class MatchManager : NetworkBehaviour
         currentPhase.Value;
     public int CountdownValue =>
         countdownValue.Value;
+    public int PreparationTimeRemaining =>
+        preparationTimeRemaining.Value;
     public bool IsCombatActive =>
         currentPhase.Value ==
         MatchPhase.Combat;
@@ -122,6 +134,8 @@ public class MatchManager : NetworkBehaviour
     {
         countdownValue.OnValueChanged +=
             OnIntegerMatchStateChanged;
+        preparationTimeRemaining.OnValueChanged +=
+            OnIntegerMatchStateChanged;
         currentPhase.OnValueChanged +=
             OnMatchPhaseChanged;
         team0Score.OnValueChanged += OnIntegerMatchStateChanged;
@@ -138,7 +152,7 @@ public class MatchManager : NetworkBehaviour
             return;
 
         countdownValue.Value = 0;
-        
+        preparationTimeRemaining.Value = 0;
         currentPhase.Value =
             MatchPhase.Lobby;
         
@@ -170,6 +184,8 @@ public class MatchManager : NetworkBehaviour
     {
         countdownValue.OnValueChanged -=
             OnIntegerMatchStateChanged;
+        preparationTimeRemaining.OnValueChanged -=
+            OnIntegerMatchStateChanged;
         currentPhase.OnValueChanged -=
             OnMatchPhaseChanged;
         team0Score.OnValueChanged -= OnIntegerMatchStateChanged;
@@ -190,22 +206,57 @@ public class MatchManager : NetworkBehaviour
             return false;
         }
 
+        // Preparation ve countdown sırasında
+        // ölüm bildirimi round bitirmesin.
         roundEnding = true;
 
-        PrepareFightersForRound();
-
         StartCoroutine(
-            RunCountdown(
-                initialCountdownSeconds
-            )
+            RunPreparationSequence()
         );
 
         Debug.Log(
             "Waiting Room tamamlandı. " +
-            "Maç sayacı başladı."
+            "Hazırlık aşaması başladı."
         );
 
         return true;
+    }
+    private IEnumerator RunPreparationSequence()
+    {
+        if (!IsServer)
+            yield break;
+
+        currentPhase.Value =
+            MatchPhase.Preparation;
+
+        countdownValue.Value = 0;
+
+        PrepareFightersForPreparation();
+
+        SetAllFighterControls(true);
+
+        for (int seconds =
+                 preparationDurationSeconds;
+             seconds > 0;
+             seconds--)
+        {
+            preparationTimeRemaining.Value =
+                seconds;
+
+            yield return new WaitForSeconds(1f);
+        }
+
+        preparationTimeRemaining.Value = 0;
+
+        // Hazırlık süresi bittiğinde hareketi
+        // combat alanına geçmeden önce kapat.
+        SetAllFighterControls(false);
+
+        PrepareFightersForRound();
+
+        yield return RunCountdown(
+            initialCountdownSeconds
+        );
     }
     private IEnumerator RunCountdown(
         int countdownSeconds)
@@ -240,6 +291,60 @@ public class MatchManager : NetworkBehaviour
             $"Round {roundNumber.Value} başladı."
         );
     }
+    private void PrepareFightersForPreparation()
+    {
+        if (!IsServer)
+            return;
+
+        fighters.RemoveAll(
+            fighter => fighter == null
+        );
+
+        foreach (FighterHealth fighter
+                 in fighters)
+        {
+            if (fighter == null)
+                continue;
+
+            fighter.ResetFighter();
+
+            PlayerController controller =
+                fighter.GetComponent<PlayerController>();
+
+            if (controller == null)
+            {
+                Debug.LogError(
+                    $"ClientId {fighter.OwnerClientId}: " +
+                    "PlayerController bulunamadı."
+                );
+
+                continue;
+            }
+
+            if (PlayerSpawnManager.Instance == null)
+            {
+                Debug.LogError(
+                    "PlayerSpawnManager bulunamadı."
+                );
+
+                continue;
+            }
+
+            Vector3 spawnPosition =
+                PlayerSpawnManager.Instance
+                    .GetPreparationSpawnPosition(
+                        fighter.OwnerClientId
+                    );
+
+            controller.ServerMoveToSpawn(
+                spawnPosition
+            );
+
+            controller.ServerSetControlEnabled(
+                true
+            );
+        }
+    }
     private void PrepareFightersForRound()
     {
         if (!IsServer)
@@ -269,7 +374,7 @@ public class MatchManager : NetworkBehaviour
             {
                 Vector3 spawnPosition =
                     PlayerSpawnManager.Instance
-                        .GetSpawnPosition(
+                        .GetCombatSpawnPosition(
                             fighter.OwnerClientId
                         );
 

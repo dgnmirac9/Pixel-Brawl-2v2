@@ -1,10 +1,22 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class PlayerSpawnManager : MonoBehaviour
 {
-    public static PlayerSpawnManager Instance { get; private set; }
+    public static PlayerSpawnManager Instance
+    {
+        get;
+        private set;
+    }
 
-    [SerializeField] private Transform[] spawnPoints;
+    [Header("Combat Spawn Points")]
+    [FormerlySerializedAs("spawnPoints")]
+    [SerializeField]
+    private Transform[] combatSpawnPoints;
+
+    [Header("Preparation Spawn Points")]
+    [SerializeField]
+    private Transform[] preparationSpawnPoints;
 
     private void Awake()
     {
@@ -17,23 +29,56 @@ public class PlayerSpawnManager : MonoBehaviour
         Instance = this;
     }
 
+    // Eski çağrılar bozulmasın diye korunuyor.
     public Vector3 GetSpawnPosition(ulong clientId)
     {
-        if (spawnPoints == null || spawnPoints.Length == 0)
+        return GetCombatSpawnPosition(clientId);
+    }
+
+    public Vector3 GetCombatSpawnPosition(
+        ulong clientId)
+    {
+        return GetSpawnPositionFromArray(
+            combatSpawnPoints,
+            clientId,
+            "Combat"
+        );
+    }
+
+    public Vector3 GetPreparationSpawnPosition(
+        ulong clientId)
+    {
+        return GetSpawnPositionFromArray(
+            preparationSpawnPoints,
+            clientId,
+            "Preparation"
+        );
+    }
+
+    private Vector3 GetSpawnPositionFromArray(
+        Transform[] points,
+        ulong clientId,
+        string groupName)
+    {
+        if (points == null || points.Length == 0)
         {
-            Debug.LogError("Spawn point bulunamadı!");
+            Debug.LogError(
+                $"{groupName} spawn point bulunamadı!"
+            );
+
             return Vector3.zero;
         }
 
         int spawnIndex =
-            (int)(clientId % (ulong)spawnPoints.Length);
+            (int)(clientId % (ulong)points.Length);
 
-        Transform spawnPoint = spawnPoints[spawnIndex];
+        Transform spawnPoint = points[spawnIndex];
 
         if (spawnPoint == null)
         {
             Debug.LogError(
-                $"Spawn point {spawnIndex} atanmamış!"
+                $"{groupName} spawn point " +
+                $"{spawnIndex} atanmamış!"
             );
 
             return Vector3.zero;
@@ -44,20 +89,40 @@ public class PlayerSpawnManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (spawnPoints == null)
+        DrawSpawnPoints(
+            combatSpawnPoints,
+            Color.cyan
+        );
+
+        DrawSpawnPoints(
+            preparationSpawnPoints,
+            Color.yellow
+        );
+    }
+
+    private void DrawSpawnPoints(
+        Transform[] points,
+        Color color)
+    {
+        if (points == null)
             return;
 
-        Gizmos.color = Color.cyan;
+        Gizmos.color = color;
 
-        foreach (Transform spawnPoint in spawnPoints)
+        foreach (Transform point in points)
         {
-            if (spawnPoint != null)
-            {
-                Gizmos.DrawWireSphere(
-                    spawnPoint.position,
-                    0.3f
-                );
-            }
+            if (point == null)
+                continue;
+
+            Gizmos.DrawWireSphere(
+                point.position,
+                0.3f
+            );
+
+            Gizmos.DrawLine(
+                point.position,
+                point.position + Vector3.up * 0.6f
+            );
         }
     }
 }

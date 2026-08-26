@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65f2210ce1802f247b73571772e7d5a8, type: 3}
+  m_Name: Weapon_DuelistSword
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  itemId: 2
+  displayName: Duelist Sword
+  description: ' A swift blade designed for frequent critical strikes.'
+  icon: {fileID: -1218736642286713944, guid: 9ce9707d97db91e43bc00898cdc298fd, type: 3}
+  itemType: 0
+  rarity: 2
+  attackDamage: 16
+  attackCooldown: 0.28
+  criticalChance: 0.25
+  criticalDamageMultiplier: 1.9
+  damageReduction: 0
+  moveSpeedMultiplier: 1
+  maxHealthBonus: 0

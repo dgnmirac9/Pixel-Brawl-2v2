@@ -1,3 +1,4 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -33,6 +34,7 @@ public class BreakableObject : NetworkBehaviour
     private Collider2D objectCollider;
 
     public bool IsBroken => isBroken.Value;
+    public event Action<Vector2> BrokenOnServer;
 
     private void Awake()
     {
@@ -71,6 +73,8 @@ public class BreakableObject : NetworkBehaviour
             return;
 
         isBroken.Value = true;
+
+        BrokenOnServer?.Invoke(impactPoint);
 
         PlayBreakEffectRpc(impactPoint);
     }

@@ -48,6 +48,7 @@ public class PlayerController : NetworkBehaviour
     private float criticalKnockbackDuration = 0.18f;
     
     // Referanslar
+    private PlayerLoadout playerLoadout;
     private bool canControl = true;
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -88,6 +89,7 @@ public class PlayerController : NetworkBehaviour
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        playerLoadout = GetComponent<PlayerLoadout>();
 
         mainCamera = Camera.main;
         if (aimOrigin == null)
@@ -103,7 +105,75 @@ public class PlayerController : NetworkBehaviour
             );
         }
     }
+    
+    private ItemDefinition GetEquippedWeapon()
+    {
+        if (playerLoadout == null)
+            return null;
 
+        return playerLoadout.EquippedWeapon;
+    }
+
+    private float GetEffectiveMoveSpeed()
+    {
+        float multiplier =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalMoveSpeedMultiplier
+                : 1f;
+
+        return moveSpeed * multiplier;
+    }
+
+    private int GetEffectiveAttackDamage()
+    {
+        ItemDefinition weapon =
+            GetEquippedWeapon();
+
+        return weapon != null
+            ? weapon.AttackDamage
+            : attackDamage;
+    }
+
+    private float GetEffectiveAttackCooldown()
+    {
+        ItemDefinition weapon =
+            GetEquippedWeapon();
+
+        return weapon != null
+            ? Mathf.Max(
+                0.05f,
+                weapon.AttackCooldown
+            )
+            : attackCooldown;
+    }
+
+    private float GetEffectiveCriticalChance()
+    {
+        ItemDefinition weapon =
+            GetEquippedWeapon();
+
+        return weapon != null
+            ? Mathf.Clamp01(
+                weapon.CriticalChance
+            )
+            : criticalChance;
+    }
+
+    private float
+        GetEffectiveCriticalDamageMultiplier()
+    {
+        ItemDefinition weapon =
+            GetEquippedWeapon();
+
+        return weapon != null
+            ? Mathf.Max(
+                1f,
+                weapon.CriticalDamageMultiplier
+            )
+            : criticalDamageMultiplier;
+    }
+    
     private void Update()
     {
         if (!IsOwner ||
@@ -132,10 +202,14 @@ public class PlayerController : NetworkBehaviour
         HandleAiming();
 
         //Saldırı (SOL TIK)
-        if (Input.GetMouseButtonDown(0) && Time.time >= nextAttackTime)
+        if (Input.GetMouseButtonDown(0) &&
+            Time.time >= nextAttackTime)
         {
             PerformAttack();
-            nextAttackTime = Time.time + attackCooldown;
+
+            nextAttackTime =
+                Time.time +
+                GetEffectiveAttackCooldown();
         }
         
         // Dash (Space)
@@ -156,7 +230,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         Vector2 targetVelocity =
-            moveInput * moveSpeed;
+            moveInput * GetEffectiveMoveSpeed();
 
         bool hasMovementInput =
             moveInput.sqrMagnitude > 0.001f;
@@ -478,8 +552,22 @@ public class PlayerController : NetworkBehaviour
         if (!IsServer)
             return;
         
-        if (MatchManager.Instance == null ||
-            !MatchManager.Instance.IsCombatActive)
+        if (MatchManager.Instance == null)
+            return;
+
+        MatchPhase currentMatchPhase =
+            MatchManager.Instance.CurrentPhase;
+
+        bool isCombatPhase =
+            currentMatchPhase ==
+            MatchPhase.Combat;
+
+        bool isPreparationPhase =
+            currentMatchPhase ==
+            MatchPhase.Preparation;
+
+        if (!isCombatPhase &&
+            !isPreparationPhase)
         {
             return;
         }
@@ -489,7 +577,8 @@ public class PlayerController : NetworkBehaviour
             return;
 
         nextServerAttackTime =
-            Time.time + attackCooldown;
+            Time.time +
+            GetEffectiveAttackCooldown();
 
         Vector2 attackDirection =
             requestedAimDirection.normalized;
@@ -501,22 +590,44 @@ public class PlayerController : NetworkBehaviour
             (Vector2)aimOrigin.position +
             attackDirection * attackPointDistance;
         
+        int effectiveAttackDamage =
+            GetEffectiveAttackDamage();
+
+        float effectiveCriticalChance =
+            GetEffectiveCriticalChance();
+
+        float effectiveCriticalMultiplier =
+            GetEffectiveCriticalDamageMultiplier();
+
         bool isCritical =
-            UnityEngine.Random.value < criticalChance;
+            UnityEngine.Random.value <
+            effectiveCriticalChance;
 
         int resolvedDamage =
             isCritical
                 ? Mathf.RoundToInt(
-                    attackDamage *
-                    criticalDamageMultiplier
+                    effectiveAttackDamage *
+                    effectiveCriticalMultiplier
                 )
-                : attackDamage;
+                : effectiveAttackDamage;
         
         Collider2D[] hitColliders =
             Physics2D.OverlapCircleAll(
                 attackCenter,
                 attackRange
             );
+
+        if (isPreparationPhase)
+        {
+            ResolvePreparationAttackOnServer(
+                hitColliders,
+                attackCenter
+            );
+
+            // Preparation sırasında oyunculara veya
+            // EnemyHealth nesnelerine hasar verilmez.
+            return;
+        }
 
         HashSet<FighterHealth> damagedFighters =
             new HashSet<FighterHealth>();
@@ -592,6 +703,57 @@ public class PlayerController : NetworkBehaviour
             );
         }
     }
+    
+    private void ResolvePreparationAttackOnServer(
+        Collider2D[] hitColliders,
+        Vector2 attackCenter)
+    {
+        if (!IsServer ||
+            hitColliders == null)
+        {
+            return;
+        }
+
+        HashSet<BreakableObject>
+            brokenObjects = new();
+
+        foreach (Collider2D hit
+                 in hitColliders)
+        {
+            if (hit == null)
+                continue;
+
+            PreparationLootCrate preparationCrate =
+                hit.GetComponentInParent<
+                    PreparationLootCrate>();
+
+            if (preparationCrate == null)
+                continue;
+
+            BreakableObject breakable =
+                preparationCrate.GetComponent<
+                    BreakableObject>();
+
+            if (breakable == null ||
+                breakable.IsBroken)
+            {
+                continue;
+            }
+
+            if (!brokenObjects.Add(breakable))
+                continue;
+
+            Vector2 impactPoint =
+                hit.ClosestPoint(
+                    attackCenter
+                );
+
+            breakable.BreakOnServer(
+                impactPoint
+            );
+        }
+    }
+    
     private void ApplyAimVisuals(Vector2 direction)
     {
         if (direction == Vector2.zero)

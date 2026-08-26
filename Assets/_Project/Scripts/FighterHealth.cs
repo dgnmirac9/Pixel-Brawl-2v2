@@ -27,12 +27,15 @@ public class FighterHealth : NetworkBehaviour
             NetworkVariableWritePermission.Server
         );
 
+    private PlayerLoadout playerLoadout;
+    private int lastKnownMaxHealth;
     private PlayerController playerController;
     private SpriteRenderer spriteRenderer;
     private Collider2D[] fighterColliders;
     private Color originalColor;
     private HitFeedback hitFeedback;
     
+    public int MaxHealth => GetEffectiveMaxHealth();
     public int CurrentHealth => currentHealth.Value;
     public bool IsAlive => isAlive.Value;
     public int TeamId => (int)(OwnerClientId % 2);
@@ -41,6 +44,7 @@ public class FighterHealth : NetworkBehaviour
     {
         hitFeedback = GetComponent<HitFeedback>();
         playerController = GetComponent<PlayerController>();
+        playerLoadout = GetComponent<PlayerLoadout>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         fighterColliders = GetComponentsInChildren<Collider2D>(true);
 
@@ -49,12 +53,19 @@ public class FighterHealth : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        lastKnownMaxHealth =
+            GetEffectiveMaxHealth();
+
+        if (playerLoadout != null)
+        {
+            playerLoadout.LoadoutChanged += OnLoadoutChanged;
+        }
         currentHealth.OnValueChanged += OnHealthChanged;
         isAlive.OnValueChanged += OnAliveChanged;
 
         if (IsServer)
         {
-            currentHealth.Value = maxHealth;
+            currentHealth.Value = GetEffectiveMaxHealth();
             isAlive.Value = true;
         }
 
@@ -89,6 +100,10 @@ public class FighterHealth : NetworkBehaviour
         if (IsServer && MatchManager.Instance != null)
         {
             MatchManager.Instance.UnregisterFighter(this);
+        }
+        if (playerLoadout != null)
+        {
+            playerLoadout.LoadoutChanged -= OnLoadoutChanged;
         }
     }
     
@@ -137,16 +152,29 @@ public class FighterHealth : NetworkBehaviour
         if (damageAmount <= 0)
             return;
 
+        float damageReduction =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalDamageReduction
+                : 0f;
+
+        int resolvedDamage =
+            Mathf.Max(
+                1,
+                Mathf.RoundToInt(
+                    damageAmount *
+                    (1f - damageReduction)
+                )
+            );
+        
         currentHealth.Value = Mathf.Max(
-            currentHealth.Value - damageAmount,
+            currentHealth.Value - resolvedDamage,
             0
         );
 
         Debug.Log(
-            $"{gameObject.name} hasar aldı. " +
-            $"Hasar: {damageAmount} | " +
-            $"Kritik: {isCritical} | " +
-            $"Kalan can: {currentHealth.Value}"
+            $"Gelen hasar: {damageAmount} | " +
+            $"Uygulanan hasar: {resolvedDamage} | "
         );
 
         if (currentHealth.Value <= 0 &&
@@ -169,7 +197,7 @@ public class FighterHealth : NetworkBehaviour
         if (!IsServer)
             return;
 
-        currentHealth.Value = maxHealth;
+        currentHealth.Value = GetEffectiveMaxHealth();
         isAlive.Value = true;
 
         // Host tarafındaki görsel ve kontrol durumunu
@@ -203,7 +231,10 @@ public class FighterHealth : NetworkBehaviour
     {
         if (healthBar != null)
         {
-            healthBar.UpdateHealthBar(health, maxHealth);
+            healthBar.UpdateHealthBar(
+                health,
+                GetEffectiveMaxHealth()
+            );
         }
     }
 
@@ -229,5 +260,56 @@ public class FighterHealth : NetworkBehaviour
         {
             RestoreCurrentVisualColor();
         }
+    }
+    
+    private int GetEffectiveMaxHealth()
+    {
+        int bonusHealth =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalMaxHealthBonus
+                : 0;
+
+        return Mathf.Max(
+            1,
+            maxHealth + bonusHealth
+        );
+    }
+
+    private void OnLoadoutChanged()
+    {
+        int newMaxHealth =
+            GetEffectiveMaxHealth();
+
+        int maxHealthDifference =
+            newMaxHealth -
+            lastKnownMaxHealth;
+
+        lastKnownMaxHealth =
+            newMaxHealth;
+
+        if (IsServer)
+        {
+            if (maxHealthDifference > 0 &&
+                isAlive.Value)
+            {
+                currentHealth.Value =
+                    Mathf.Min(
+                        currentHealth.Value +
+                        maxHealthDifference,
+                        newMaxHealth
+                    );
+            }
+            else if (currentHealth.Value >
+                     newMaxHealth)
+            {
+                currentHealth.Value =
+                    newMaxHealth;
+            }
+        }
+
+        UpdateHealthBar(
+            currentHealth.Value
+        );
     }
 }

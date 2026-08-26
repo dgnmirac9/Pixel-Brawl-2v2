@@ -30,7 +30,6 @@ public class EnemyHealth : NetworkBehaviour
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
-    private bool isKnockedBack;
     private Collider2D[] enemyColliders;
     
     private void Awake()
@@ -108,15 +107,12 @@ public class EnemyHealth : NetworkBehaviour
 
     private IEnumerator ApplyKnockback(Vector2 direction)
     {
-        isKnockedBack = true;
-        
         //düşmana anlık kuvvet uygula
         rb.linearVelocity = direction * knockbackForce;
         yield return new WaitForSeconds(knockbackDuration);
         
         //kuvvet süresi bitince hareketi sıfırla
         rb.linearVelocity = Vector2.zero;
-        isKnockedBack = false;
     }
 
     private IEnumerator FlashRed()

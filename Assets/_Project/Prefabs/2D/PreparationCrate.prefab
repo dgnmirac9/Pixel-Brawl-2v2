@@ -15,8 +15,9 @@ GameObject:
   - component: {fileID: 418590104598049811}
   - component: {fileID: 5326758876638801502}
   - component: {fileID: 3253308551289389275}
+  - component: {fileID: 194192040300269054}
   m_Layer: 20
-  m_Name: BreakableCrate
+  m_Name: PreparationCrate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -181,7 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 751683408
+  GlobalObjectIdHash: 55531626
   InScenePlacedSourceGlobalObjectIdHash: 751683408
   DeferredDespawnTick: 0
   Ownership: 1
@@ -311,3 +312,19 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &194192040300269054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8760488513931134704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 661eb4c51c71f3e47ae602f2414adecc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PreparationLootCrate
+  ShowTopMostFoldoutHeaderGroup: 1
+  itemPickupPrefab: {fileID: 8355023228891834715, guid: 4f7d711045991e74398712faa83a0ba0,
+    type: 3}
+  pickupSpawnOffset: {x: 0, y: 0.35}

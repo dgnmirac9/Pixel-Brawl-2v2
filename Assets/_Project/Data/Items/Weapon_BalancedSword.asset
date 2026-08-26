@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65f2210ce1802f247b73571772e7d5a8, type: 3}
+  m_Name: Weapon_BalancedSword
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  itemId: 1
+  displayName: Balanced Sword
+  description: A reliable sword with balanced combat stats.
+  icon: {fileID: 1469261466165044888, guid: 9b4a0fb6f2b0c9046bd768debee33809, type: 3}
+  itemType: 0
+  rarity: 0
+  attackDamage: 20
+  attackCooldown: 0.4
+  criticalChance: 0.15
+  criticalDamageMultiplier: 1.5
+  damageReduction: 0
+  moveSpeedMultiplier: 1
+  maxHealthBonus: 0

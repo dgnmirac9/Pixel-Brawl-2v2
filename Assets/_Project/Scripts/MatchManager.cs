@@ -233,6 +233,18 @@ public class MatchManager : NetworkBehaviour
 
         PrepareFightersForPreparation();
 
+        if (PreparationCrateSpawner.Instance == null)
+        {
+            Debug.LogError(
+                "PreparationCrateSpawner sahnede bulunamadı."
+            );
+        }
+        else
+        {
+            PreparationCrateSpawner.Instance
+                .SpawnCratesOnServer();
+        }
+
         SetAllFighterControls(true);
 
         for (int seconds =
@@ -248,9 +260,13 @@ public class MatchManager : NetworkBehaviour
 
         preparationTimeRemaining.Value = 0;
 
-        // Hazırlık süresi bittiğinde hareketi
-        // combat alanına geçmeden önce kapat.
         SetAllFighterControls(false);
+
+        if (PreparationCrateSpawner.Instance != null)
+        {
+            PreparationCrateSpawner.Instance
+                .CleanupPreparationObjectsOnServer();
+        }
 
         PrepareFightersForRound();
 
@@ -305,6 +321,14 @@ public class MatchManager : NetworkBehaviour
         {
             if (fighter == null)
                 continue;
+
+            PlayerLoadout loadout =
+                fighter.GetComponent<PlayerLoadout>();
+
+            if (loadout != null)
+            {
+                loadout.ServerClearLoadout();
+            }
 
             fighter.ResetFighter();
 

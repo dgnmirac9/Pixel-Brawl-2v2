@@ -128,7 +128,7 @@ CircleCollider2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9173992554924653811}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Density: 1
   m_Material: {fileID: 0}
@@ -199,3 +199,4 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   itemCatalog: {fileID: 11400000, guid: df6d64d6bb390c54494d3316057e4f07, type: 2}
   targetWorldSize: 1
+  pickupDelay: 0.8

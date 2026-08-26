@@ -209,7 +209,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BreakableObject
   ShowTopMostFoldoutHeaderGroup: 1
   breakSound: {fileID: 8300000, guid: 6eb76cae7ab904b27ba1fbe01f96302f, type: 3}
-  breakSoundVolume: 0.8
+  breakSoundVolume: 0.3
   intactSprite: {fileID: 0}
   brokenSprite: {fileID: 0}
   breakEffectPrefab: {fileID: 7874513501100868755, guid: 73b16297b5d9a459b8d4fd4863cebce5,

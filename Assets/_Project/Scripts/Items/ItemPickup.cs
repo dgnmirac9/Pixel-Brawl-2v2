@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using System.Collections;
 
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(SpriteRenderer))]
@@ -12,6 +13,12 @@ public class ItemPickup : NetworkBehaviour
     [Header("World Visual")]
     [SerializeField, Min(0.1f)]
     private float targetWorldSize = 1f;
+    
+    [Header("Pickup Timing")]
+    [SerializeField, Min(0f)]
+    private float pickupDelay = 0.8f;
+
+    private Coroutine enablePickupRoutine;
     
     private readonly NetworkVariable<ItemId>
         itemId = new(
@@ -48,6 +55,12 @@ public class ItemPickup : NetworkBehaviour
     {
         itemId.OnValueChanged -=
             OnItemIdChanged;
+
+        if (enablePickupRoutine != null)
+        {
+            StopCoroutine(enablePickupRoutine);
+            enablePickupRoutine = null;
+        }
     }
 
     public void ServerSetItem(ItemId newItemId)
@@ -66,14 +79,46 @@ public class ItemPickup : NetworkBehaviour
 
         collected = false;
 
+        if (enablePickupRoutine != null)
+        {
+            StopCoroutine(enablePickupRoutine);
+        }
+
         if (pickupCollider != null)
         {
-            pickupCollider.enabled = true;
+            pickupCollider.enabled = false;
         }
 
         itemId.Value = newItemId;
 
         ApplyItemVisual(newItemId);
+
+        enablePickupRoutine =
+            StartCoroutine(
+                EnablePickupAfterDelay()
+            );
+    }
+    
+    private IEnumerator EnablePickupAfterDelay()
+    {
+        yield return new WaitForSeconds(
+            pickupDelay
+        );
+
+        if (!IsServer ||
+            !IsSpawned ||
+            collected)
+        {
+            enablePickupRoutine = null;
+            yield break;
+        }
+
+        if (pickupCollider != null)
+        {
+            pickupCollider.enabled = true;
+        }
+
+        enablePickupRoutine = null;
     }
 
     private void OnTriggerEnter2D(

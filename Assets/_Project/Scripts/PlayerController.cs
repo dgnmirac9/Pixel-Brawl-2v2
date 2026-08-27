@@ -156,6 +156,19 @@ public class PlayerController : NetworkBehaviour
         return moveSpeed * multiplier;
     }
 
+    private float GetEffectiveStaminaRegeneration()
+    {
+        float multiplier =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalStaminaRegenerationMultiplier
+                : 1f;
+
+        return
+            staminaRegenerationPerSecond *
+            multiplier;
+    }
+    
     private int GetEffectiveAttackDamage()
     {
         ItemDefinition weapon =
@@ -546,7 +559,7 @@ public class PlayerController : NetworkBehaviour
             Mathf.MoveTowards(
                 currentStamina,
                 maxStamina,
-                staminaRegenerationPerSecond *
+                GetEffectiveStaminaRegeneration() *
                 Time.deltaTime
             );
 

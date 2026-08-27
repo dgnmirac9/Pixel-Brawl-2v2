@@ -75,6 +75,9 @@ public class ItemDefinition : ScriptableObject
 
     [SerializeField, Min(0)]
     private int maxHealthBonus;
+    
+    [SerializeField, Min(0.01f)]
+    private float staminaRegenerationMultiplier = 1f;
 
     public ItemId Id => itemId;
     public string DisplayName => displayName;
@@ -86,7 +89,8 @@ public class ItemDefinition : ScriptableObject
     public int AttackDamage => attackDamage;
     public float AttackCooldown => attackCooldown;
     public float CriticalChance => criticalChance;
-
+    public float StaminaRegenerationMultiplier =>
+        staminaRegenerationMultiplier;
     public float CriticalDamageMultiplier =>
         criticalDamageMultiplier;
 

@@ -128,7 +128,34 @@ public class PlayerLoadout : NetworkBehaviour
             return Mathf.Max(0, totalBonus);
         }
     }
+    
+    public float TotalStaminaRegenerationMultiplier
+    {
+        get
+        {
+            float multiplier = 1f;
 
+            for (int index = 0;
+                 index < PassiveSlotCount;
+                 index++)
+            {
+                ItemDefinition item =
+                    GetPassiveItem(index);
+
+                if (item != null)
+                {
+                    multiplier *=
+                        item.StaminaRegenerationMultiplier;
+                }
+            }
+
+            return Mathf.Max(
+                0.01f,
+                multiplier
+            );
+        }
+    }
+    
     public override void OnNetworkSpawn()
     {
         equippedWeaponId.OnValueChanged +=
@@ -301,4 +328,4 @@ public class PlayerLoadout : NetworkBehaviour
     {
         LoadoutChanged?.Invoke();
     }
-}
+}   

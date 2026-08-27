@@ -17,6 +17,22 @@ public class PlayerController : NetworkBehaviour
     [SerializeField, Min(0f)]
     private float deceleration = 35f;
 
+    [Header("Stamina Settings")]
+    [SerializeField, Min(1f)]
+    private float maxStamina = 100f;
+
+    [SerializeField, Min(0f)]
+    private float dashStaminaCost = 50f;
+
+    [SerializeField, Min(0f)]
+    private float staminaRegenerationPerSecond = 50f;
+
+    [SerializeField, Min(0f)]
+    private float staminaRegenerationDelay = 1.25f;
+
+    [SerializeField]
+    private StaminaBarUI staminaBar;
+    
     [Header("Dash Settings")]
     [SerializeField] private float dashSpeed = 12f;
     [SerializeField] private float dashDuration = 0.2f;
@@ -71,11 +87,22 @@ public class PlayerController : NetworkBehaviour
     private bool isDashing = false;
     private bool canDash = true;
     private bool isKnockedBack;
+    private float currentStamina;
+    private float staminaRegenerationStartTime;
+    private float nextStaminaNetworkSyncTime;
+    private const float StaminaSyncInterval = 0.1f;
 
     
     private NetworkVariable<Vector2> networkAimDirection =
         new NetworkVariable<Vector2>(
             Vector2.right,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Owner
+        );
+    
+    private readonly NetworkVariable<float>
+        networkStamina = new(
+            100f,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner
         );
@@ -104,6 +131,10 @@ public class PlayerController : NetworkBehaviour
                 attackPoint.position
             );
         }
+        
+        currentStamina = maxStamina;
+
+        UpdateStaminaBar();
     }
     
     private ItemDefinition GetEquippedWeapon()
@@ -176,8 +207,12 @@ public class PlayerController : NetworkBehaviour
     
     private void Update()
     {
-        if (!IsOwner ||
-            !canControl ||
+        if (!IsOwner)
+            return;
+
+        UpdateStamina();
+
+        if (!canControl ||
             isKnockedBack)
         {
             return;
@@ -213,9 +248,15 @@ public class PlayerController : NetworkBehaviour
         }
         
         // Dash (Space)
-        if (Input.GetKeyDown(KeyCode.Space) && canDash)
+        if (Input.GetKeyDown(KeyCode.Space) &&
+            canDash &&
+            currentStamina >= dashStaminaCost)
         {
-            StartCoroutine(PerformDash());
+            SpendDashStamina();
+
+            StartCoroutine(
+                PerformDash()
+            );
         }
     }
 
@@ -321,6 +362,11 @@ public class PlayerController : NetworkBehaviour
             isDashing = false;
             isKnockedBack = false;
             canDash = true;
+            
+            if (IsOwner)
+            {
+                ResetStamina();
+            }
         }
     }
     public void ServerMoveToSpawn(Vector3 spawnPosition)
@@ -423,7 +469,7 @@ public class PlayerController : NetworkBehaviour
 
         // Dash sonrasında ulaşılacak normal hareket hızı.
         Vector2 recoveryTargetVelocity =
-            moveInput * moveSpeed;
+            moveInput * GetEffectiveMoveSpeed();
 
         float recoveryElapsed = 0f;
 
@@ -468,22 +514,140 @@ public class PlayerController : NetworkBehaviour
         canDash = true;
     }
     
+    private void SpendDashStamina()
+    {
+        currentStamina =
+            Mathf.Max(
+                0f,
+                currentStamina -
+                dashStaminaCost
+            );
+
+        staminaRegenerationStartTime =
+            Time.time +
+            staminaRegenerationDelay;
+
+        UpdateStaminaBar();
+        SyncStamina(true);
+    }
+
+    private void UpdateStamina()
+    {
+        if (currentStamina >= maxStamina)
+            return;
+
+        if (Time.time <
+            staminaRegenerationStartTime)
+        {
+            return;
+        }
+
+        currentStamina =
+            Mathf.MoveTowards(
+                currentStamina,
+                maxStamina,
+                staminaRegenerationPerSecond *
+                Time.deltaTime
+            );
+
+        UpdateStaminaBar();
+        SyncStamina(false);
+    }
+
+    private void ResetStamina()
+    {
+        currentStamina = maxStamina;
+        staminaRegenerationStartTime = 0f;
+
+        UpdateStaminaBar();
+        SyncStamina(true);
+    }
+
+    private void UpdateStaminaBar()
+    {
+        if (staminaBar == null)
+            return;
+
+        staminaBar.UpdateStamina(
+            currentStamina,
+            maxStamina
+        );
+    }
+
+    private void SyncStamina(bool forceSync)
+    {
+        if (!IsOwner ||
+            !IsSpawned)
+        {
+            return;
+        }
+
+        if (!forceSync &&
+            Time.time <
+            nextStaminaNetworkSyncTime)
+        {
+            return;
+        }
+
+        networkStamina.Value =
+            currentStamina;
+
+        nextStaminaNetworkSyncTime =
+            Time.time +
+            StaminaSyncInterval;
+    }
+
+    private void OnNetworkStaminaChanged(
+        float previousStamina,
+        float newStamina)
+    {
+        if (!IsOwner)
+        {
+            currentStamina =
+                newStamina;
+        }
+
+        UpdateStaminaBar();
+    }
+    
     public override void OnNetworkSpawn()
     {
-        networkAimDirection.OnValueChanged += OnAimDirectionChanged;
+        networkAimDirection.OnValueChanged +=
+            OnAimDirectionChanged;
 
-        ApplyAimVisuals(networkAimDirection.Value);
-        
+        networkStamina.OnValueChanged +=
+            OnNetworkStaminaChanged;
+
+        ApplyAimVisuals(
+            networkAimDirection.Value
+        );
+
         if (IsOwner)
         {
-            StartCoroutine(MoveToSpawnPoint());
+            ResetStamina();
+
+            StartCoroutine(
+                MoveToSpawnPoint()
+            );
+        }
+        else
+        {
+            currentStamina =
+                networkStamina.Value;
+
+            UpdateStaminaBar();
         }
     }
 
     public override void OnNetworkDespawn()
     {
-        networkAimDirection.OnValueChanged -= OnAimDirectionChanged;
+        networkAimDirection.OnValueChanged -=
+            OnAimDirectionChanged;
+
+        networkStamina.OnValueChanged -=
+            OnNetworkStaminaChanged;
     }
+    
     private IEnumerator MoveToSpawnPoint()
     {
         // NetworkTransform'un spawn işlemini tamamlamasını bekle.

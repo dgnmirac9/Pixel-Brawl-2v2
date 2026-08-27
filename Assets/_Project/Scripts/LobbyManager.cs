@@ -188,27 +188,79 @@ public class LobbyManager : NetworkBehaviour
         ulong senderClientId =
             rpcParams.Receive.SenderClientId;
 
-        // Yalnızca Host maçı başlatabilir.
+        Debug.Log(
+            "[LobbyManager] Start Match isteği. " +
+            $"Sender: {senderClientId} | " +
+            $"Connected: {ConnectedPlayerCount} | " +
+            $"Ready: {ReadyPlayerCount}"
+        );
+
         if (senderClientId !=
             NetworkManager.ServerClientId)
         {
+            Debug.LogWarning(
+                "[LobbyManager] Start Match reddedildi: " +
+                "İsteği Host göndermedi."
+            );
+
             return;
         }
 
         if (!CanStartMatch)
-            return;
+        {
+            Debug.LogWarning(
+                "[LobbyManager] Start Match reddedildi: " +
+                $"Connected={ConnectedPlayerCount}, " +
+                $"Ready={ReadyPlayerCount}"
+            );
 
-        if (MatchManager.Instance == null)
             return;
+        }
+
+        MatchManager matchManager =
+            MatchManager.Instance;
+
+        if (matchManager == null ||
+            !matchManager.IsSpawned)
+        {
+            Debug.LogError(
+                "[LobbyManager] MatchManager bulunamadı " +
+                "veya NetworkObject spawn olmadı."
+            );
+
+            return;
+        }
+
+        // Önceki network oturumundan phase kaldıysa
+        // yeni lobby durumuna geri getir.
+        if (matchManager.CurrentPhase !=
+            MatchPhase.Lobby)
+        {
+            Debug.LogWarning(
+                "[LobbyManager] Eski match phase bulundu: " +
+                $"{matchManager.CurrentPhase}. Resetleniyor."
+            );
+
+            matchManager.ServerResetForNewSession();
+        }
 
         bool matchSuccessfullyStarted =
-            MatchManager.Instance
-                .ServerBeginMatch();
+            matchManager.ServerBeginMatch();
 
         if (!matchSuccessfullyStarted)
+        {
+            Debug.LogError(
+                "[LobbyManager] ServerBeginMatch false döndürdü."
+            );
+
             return;
+        }
 
         matchStarted.Value = true;
+
+        Debug.Log(
+            "[LobbyManager] Maç başarıyla başlatıldı."
+        );
     }
 
     private void HandleClientConnected(

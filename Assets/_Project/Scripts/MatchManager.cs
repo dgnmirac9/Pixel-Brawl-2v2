@@ -151,18 +151,7 @@ public class MatchManager : NetworkBehaviour
         if (!IsServer)
             return;
 
-        countdownValue.Value = 0;
-        preparationTimeRemaining.Value = 0;
-        currentPhase.Value =
-            MatchPhase.Lobby;
-        
-        team0Score.Value = 0;
-        team1Score.Value = 0;
-        roundNumber.Value = 1;
-
-        matchEnded.Value = false;
-        winningTeamId.Value = -1;
-        roundEnding = false;
+        ServerResetForNewSession();
 
         FighterHealth[] existingFighters =
             FindObjectsByType<FighterHealth>(
@@ -193,6 +182,52 @@ public class MatchManager : NetworkBehaviour
         roundNumber.OnValueChanged -= OnIntegerMatchStateChanged;
         winningTeamId.OnValueChanged -= OnIntegerMatchStateChanged;
         matchEnded.OnValueChanged -= OnBooleanMatchStateChanged;
+        
+        StopAllCoroutines();
+        fighters.Clear();
+        roundEnding = false;
+    }
+    
+    public void ServerResetForNewSession()
+    {
+        if (!IsServer || !IsSpawned)
+        {
+            Debug.LogWarning(
+                "[MatchManager] Oturum resetlenemedi: " +
+                $"IsServer={IsServer}, IsSpawned={IsSpawned}"
+            );
+
+            return;
+        }
+
+        // Önceki oturumdan kalan preparation,
+        // countdown veya round coroutine'lerini kapatır.
+        StopAllCoroutines();
+
+        countdownValue.Value = 0;
+        preparationTimeRemaining.Value = 0;
+
+        currentPhase.Value = MatchPhase.Lobby;
+
+        team0Score.Value = 0;
+        team1Score.Value = 0;
+        roundNumber.Value = 1;
+
+        matchEnded.Value = false;
+        winningTeamId.Value = -1;
+        roundEnding = false;
+
+        fighters.RemoveAll(
+            fighter =>
+                fighter == null ||
+                !fighter.IsSpawned
+        );
+
+        NotifyMatchStateChanged();
+
+        Debug.Log(
+            "[MatchManager] Yeni oturum durumu sıfırlandı."
+        );
     }
     
     public bool ServerBeginMatch()

@@ -1,7 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class ItemSlotUI : MonoBehaviour
+public class ItemSlotUI :
+    MonoBehaviour,
+    IPointerEnterHandler,
+    IPointerExitHandler
 {
     [Header("References")]
     [SerializeField]
@@ -10,6 +14,10 @@ public class ItemSlotUI : MonoBehaviour
     [SerializeField]
     private Image itemIcon;
 
+    [Header("Tooltip")]
+    [SerializeField]
+    private ItemTooltipUI itemTooltip;
+    
     [Header("Empty Slot")]
     [SerializeField]
     private Color emptyRingColor =
@@ -93,5 +101,27 @@ public class ItemSlotUI : MonoBehaviour
 
             _ => emptyRingColor
         };
+    }
+    public void OnPointerEnter(
+        PointerEventData eventData)
+    {
+        if (currentItem == null ||
+            itemTooltip == null)
+        {
+            return;
+        }
+
+        itemTooltip.Show(
+            currentItem
+        );
+    }
+
+    public void OnPointerExit(
+        PointerEventData eventData)
+    {
+        if (itemTooltip != null)
+        {
+            itemTooltip.Hide();
+        }
     }
 }

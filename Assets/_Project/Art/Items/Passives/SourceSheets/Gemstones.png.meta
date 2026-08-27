@@ -147,7 +147,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Gemstones_1
+      name: Item_StaminaCrystal
       rect:
         serializedVersion: 2
         x: 29
@@ -248,10 +248,10 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Gemstones_1: -4570859758262461892
       Gemstones_2: -3456156317398478145
       Gemstones_3: 12212666392872374
       Gemstones_4: -5191982557448148470
+      Item_StaminaCrystal: -4570859758262461892
       Item_VitalityRuby: -991856633171417929
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0

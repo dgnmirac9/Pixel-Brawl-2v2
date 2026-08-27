@@ -7,10 +7,14 @@ public enum ItemId : ushort
     BalancedSword = 1,
     DuelistSword = 2,
     HeavySword = 3,
-
+    QuickfangSword = 4,
+    ExecutionerSword = 5,
+    LuckyRapier = 6,
+    
     IronShield = 100,
     SwiftBoots = 101,
-    VitalityRuby = 102
+    VitalityRuby = 102,
+    StaminaCrystal = 103
 }
 
 public enum ItemType : byte
@@ -64,6 +68,8 @@ public class ItemDefinition : ScriptableObject
     [SerializeField, Min(0.01f)] private float moveSpeedMultiplier = 1f;
 
     [SerializeField, Min(0)] private int maxHealthBonus;
+    
+    [SerializeField, Min(0)] private float maxStaminaBonus;
 
     [SerializeField, Min(0.01f)] private float staminaRegenerationMultiplier = 1f;
 
@@ -95,4 +101,7 @@ public class ItemDefinition : ScriptableObject
 
     public int MaxHealthBonus =>
         maxHealthBonus;
+    
+    public float MaxStaminaBonus =>
+        maxStaminaBonus;
 }

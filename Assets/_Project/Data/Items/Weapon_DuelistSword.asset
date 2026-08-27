@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: 2
   displayName: Duelist Sword
   description: ' A swift blade designed for frequent critical strikes.'
-  icon: {fileID: -1218736642286713944, guid: 9ce9707d97db91e43bc00898cdc298fd, type: 3}
+  icon: {fileID: 21300000, guid: 9ce9707d97db91e43bc00898cdc298fd, type: 3}
   itemType: 0
   rarity: 2
   worldVisualScale: 1.35

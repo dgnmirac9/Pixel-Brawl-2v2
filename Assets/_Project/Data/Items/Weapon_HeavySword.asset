@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: 3
   displayName: Heavy Sword
   description: A slow but devastating heavy blade.
-  icon: {fileID: -3828692541542408575, guid: a5b953103ae420b489e43b67c965fa10, type: 3}
+  icon: {fileID: 21300000, guid: a5b953103ae420b489e43b67c965fa10, type: 3}
   itemType: 0
   rarity: 3
   worldVisualScale: 1.25

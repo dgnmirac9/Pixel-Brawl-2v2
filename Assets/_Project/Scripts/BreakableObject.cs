@@ -55,8 +55,7 @@ public class BreakableObject : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        isBroken.OnValueChanged +=
-            OnBrokenStateChanged;
+        isBroken.OnValueChanged += OnBrokenStateChanged;
 
         ApplyBrokenState(isBroken.Value);
     }

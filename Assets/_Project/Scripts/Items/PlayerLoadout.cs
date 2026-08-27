@@ -130,7 +130,34 @@ public class PlayerLoadout : NetworkBehaviour
             return Mathf.Max(0, totalBonus);
         }
     }
+    
+    public float TotalMaxStaminaBonus
+    {
+        get
+        {
+            float totalBonus = 0f;
 
+            for (int index = 0;
+                 index < PassiveSlotCount;
+                 index++)
+            {
+                ItemDefinition item =
+                    GetPassiveItem(index);
+
+                if (item != null)
+                {
+                    totalBonus +=
+                        item.MaxStaminaBonus;
+                }
+            }
+
+            return Mathf.Max(
+                0f,
+                totalBonus
+            );
+        }
+    }
+    
     public float TotalStaminaRegenerationMultiplier
     {
         get

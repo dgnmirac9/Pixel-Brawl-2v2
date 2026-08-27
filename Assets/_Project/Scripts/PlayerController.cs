@@ -88,6 +88,7 @@ public class PlayerController : NetworkBehaviour
     private bool canDash = true;
     private bool isKnockedBack;
     private float currentStamina;
+    private float lastEffectiveMaxStamina;
     private float staminaRegenerationStartTime;
     private float nextStaminaNetworkSyncTime;
     private const float StaminaSyncInterval = 0.1f;
@@ -132,7 +133,9 @@ public class PlayerController : NetworkBehaviour
             );
         }
         
-        currentStamina = maxStamina;
+        lastEffectiveMaxStamina = GetEffectiveMaxStamina();
+
+        currentStamina = lastEffectiveMaxStamina;
 
         UpdateStaminaBar();
     }
@@ -156,6 +159,20 @@ public class PlayerController : NetworkBehaviour
         return moveSpeed * multiplier;
     }
 
+    private float GetEffectiveMaxStamina()
+    {
+        float bonus =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalMaxStaminaBonus
+                : 0f;
+
+        return Mathf.Max(
+            1f,
+            maxStamina + bonus
+        );
+    }
+    
     private float GetEffectiveStaminaRegeneration()
     {
         float multiplier =
@@ -546,8 +563,14 @@ public class PlayerController : NetworkBehaviour
 
     private void UpdateStamina()
     {
-        if (currentStamina >= maxStamina)
+        float effectiveMaxStamina =
+            GetEffectiveMaxStamina();
+
+        if (currentStamina >=
+            effectiveMaxStamina)
+        {
             return;
+        }
 
         if (Time.time <
             staminaRegenerationStartTime)
@@ -558,7 +581,7 @@ public class PlayerController : NetworkBehaviour
         currentStamina =
             Mathf.MoveTowards(
                 currentStamina,
-                maxStamina,
+                effectiveMaxStamina,
                 GetEffectiveStaminaRegeneration() *
                 Time.deltaTime
             );
@@ -569,7 +592,12 @@ public class PlayerController : NetworkBehaviour
 
     private void ResetStamina()
     {
-        currentStamina = maxStamina;
+        lastEffectiveMaxStamina =
+            GetEffectiveMaxStamina();
+
+        currentStamina =
+            lastEffectiveMaxStamina;
+
         staminaRegenerationStartTime = 0f;
 
         UpdateStaminaBar();
@@ -583,9 +611,9 @@ public class PlayerController : NetworkBehaviour
 
         staminaBar.UpdateStamina(
             currentStamina,
-            maxStamina
+            GetEffectiveMaxStamina()
         );
-    }
+    }   
 
     private void SyncStamina(bool forceSync)
     {
@@ -623,8 +651,53 @@ public class PlayerController : NetworkBehaviour
         UpdateStaminaBar();
     }
     
+    private void OnLoadoutChanged()
+    {
+        float newMaximum =
+            GetEffectiveMaxStamina();
+
+        if (IsOwner)
+        {
+            float gainedMaximum =
+                Mathf.Max(
+                    0f,
+                    newMaximum -
+                    lastEffectiveMaxStamina
+                );
+
+            currentStamina =
+                Mathf.Clamp(
+                    currentStamina +
+                    gainedMaximum,
+                    0f,
+                    newMaximum
+                );
+
+            SyncStamina(true);
+        }
+        else
+        {
+            currentStamina =
+                Mathf.Min(
+                    currentStamina,
+                    newMaximum
+                );
+        }
+
+        lastEffectiveMaxStamina =
+            newMaximum;
+
+        UpdateStaminaBar();
+    }
+    
     public override void OnNetworkSpawn()
     {
+        if (playerLoadout != null)
+        {
+            playerLoadout.LoadoutChanged +=
+                OnLoadoutChanged;
+        }
+        
         networkAimDirection.OnValueChanged +=
             OnAimDirectionChanged;
 
@@ -654,6 +727,12 @@ public class PlayerController : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        if (playerLoadout != null)
+        {
+            playerLoadout.LoadoutChanged -=
+                OnLoadoutChanged;
+        }
+        
         networkAimDirection.OnValueChanged -=
             OnAimDirectionChanged;
 

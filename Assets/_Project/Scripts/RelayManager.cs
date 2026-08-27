@@ -233,6 +233,14 @@ public class RelayManager : MonoBehaviour
 
         return true;
     }
+    
+    public void ResetSessionState()
+    {
+        CurrentJoinCode = null;
+        IsBusy = false;
+
+        SetStatus("Relay hazır.");
+    }
 
     private void SetStatus(string message)
     {

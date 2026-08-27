@@ -24,6 +24,8 @@ public class ConnectionUI : MonoBehaviour
     [SerializeField] private TMP_Text statusText;
 
     private LobbyManager lobbyManager;
+    private Coroutine disconnectRoutine;
+    private bool disconnecting;
     private Coroutine lobbyInitializationRoutine;
     private RelayManager relayManager;
     private NetworkManager networkManager;
@@ -187,6 +189,9 @@ public class ConnectionUI : MonoBehaviour
 
     private void HandleClientDisconnected(ulong clientId)
     {
+        if (disconnecting)
+            return;
+        
         if (networkManager == null)
             return;
 
@@ -205,8 +210,10 @@ public class ConnectionUI : MonoBehaviour
 
             disconnectButton.gameObject.SetActive(true);
             return;
-        }
-
+        } 
+        
+        relayManager?.ResetSessionState();
+        
         ShowConnectionMenu();
         SetButtonsInteractable(true);
         RefreshJoinButton();
@@ -215,16 +222,84 @@ public class ConnectionUI : MonoBehaviour
 
     private void HandleDisconnectClicked()
     {
+        if (disconnectRoutine != null)
+            return;
+
+        disconnectRoutine =
+            StartCoroutine(
+                ShutdownNetworkRoutine()
+            );
+    }
+    
+    private IEnumerator ShutdownNetworkRoutine()
+    {
+        disconnecting = true;
+
+        float disconnectStartedAt =
+            Time.unscaledTime;
+
+        // Bağlantı ekranını hemen göster.
+        ShowConnectionMenu();
+
+        SetButtonsInteractable(false);
+        SetStatus("DISCONNECTING...");
+
+        if (lobbyInitializationRoutine != null)
+        {
+            StopCoroutine(
+                lobbyInitializationRoutine
+            );
+
+            lobbyInitializationRoutine = null;
+        }
+
+        if (lobbyManager != null)
+        {
+            lobbyManager.MatchStarted -=
+                EnterGame;
+
+            lobbyManager = null;
+        }
+
         if (networkManager != null &&
             networkManager.IsListening)
         {
             networkManager.Shutdown();
+
+            while (networkManager != null &&
+                   networkManager.IsListening)
+            {
+                yield return null;
+            }
+
+            yield return null;
         }
+
+        // Mesajın fark edilebilmesi için en az
+        // 0.4 saniye görünmesini sağlar.
+        float visibleTime =
+            Time.unscaledTime -
+            disconnectStartedAt;
+
+        float remainingTime =
+            0.4f - visibleTime;
+
+        if (remainingTime > 0f)
+        {
+            yield return new WaitForSecondsRealtime(
+                remainingTime
+            );
+        }
+
+        relayManager?.ResetSessionState();
 
         ShowConnectionMenu();
         SetButtonsInteractable(true);
         RefreshJoinButton();
         SetStatus("DISCONNECTED");
+
+        disconnecting = false;
+        disconnectRoutine = null;
     }
 
     private void HandleJoinCodeChanged(string value)

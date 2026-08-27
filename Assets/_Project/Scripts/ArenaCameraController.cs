@@ -116,10 +116,21 @@ public class ArenaCameraController : MonoBehaviour
             NetworkManager.Singleton.LocalClientId;
 
         int cameraIndex =
-            (int)(
-                localClientId %
-                (ulong)preparationCameraPoints.Length
+            ResolveLocalPlayerSlotIndex(
+                localClientId
             );
+
+        if (cameraIndex < 0 ||
+            cameraIndex >=
+            preparationCameraPoints.Length)
+        {
+            Debug.LogError(
+                $"ClientId {localClientId} için " +
+                "kamera slotu bulunamadı."
+            );
+
+            return combatCameraPoint;
+        }
 
         Transform cameraPoint =
             preparationCameraPoints[cameraIndex];
@@ -135,5 +146,35 @@ public class ArenaCameraController : MonoBehaviour
         }
 
         return cameraPoint;
+    }
+    private int ResolveLocalPlayerSlotIndex(
+        ulong localClientId)
+    {
+        if (LobbyManager.Instance != null &&
+            LobbyManager.Instance.IsSpawned)
+        {
+            int lobbySlot =
+                LobbyManager.Instance
+                    .GetPlayerSlotIndex(
+                        localClientId
+                    );
+
+            if (lobbySlot >= 0)
+                return lobbySlot;
+        }
+
+        // NetworkList henüz client'a ulaşmadıysa
+        // Host oda 0, uzak Client oda 1.
+        if (NetworkManager.Singleton != null)
+        {
+            return NetworkManager.Singleton.IsHost
+                ? 0
+                : Mathf.Min(
+                    1,
+                    preparationCameraPoints.Length - 1
+                );
+        }
+
+        return 0;
     }
 }

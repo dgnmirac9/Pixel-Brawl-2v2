@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -70,7 +71,21 @@ public class PlayerSpawnManager : MonoBehaviour
         }
 
         int spawnIndex =
-            (int)(clientId % (ulong)points.Length);
+            ResolvePlayerSlotIndex(
+                clientId,
+                points.Length
+            );
+
+        if (spawnIndex < 0 ||
+            spawnIndex >= points.Length)
+        {
+            Debug.LogError(
+                $"{groupName}: ClientId {clientId} " +
+                "için geçerli oyuncu slotu bulunamadı."
+            );
+
+            return Vector3.zero;
+        }
 
         Transform spawnPoint = points[spawnIndex];
 
@@ -85,6 +100,41 @@ public class PlayerSpawnManager : MonoBehaviour
         }
 
         return spawnPoint.position;
+    }
+    
+    private int ResolvePlayerSlotIndex(
+        ulong clientId,
+        int pointCount)
+    {
+        if (LobbyManager.Instance != null &&
+            LobbyManager.Instance.IsSpawned)
+        {
+            int lobbySlot =
+                LobbyManager.Instance
+                    .GetPlayerSlotIndex(clientId);
+
+            if (lobbySlot >= 0 &&
+                lobbySlot < pointCount)
+            {
+                return lobbySlot;
+            }
+        }
+
+        // Player ilk spawn olurken NetworkList henüz
+        // senkronize olmamışsa 1v1 için güvenli fallback.
+        if (NetworkManager.Singleton != null)
+        {
+            if (clientId ==
+                NetworkManager.ServerClientId)
+            {
+                return 0;
+            }
+
+            if (pointCount > 1)
+                return 1;
+        }
+
+        return pointCount > 0 ? 0 : -1;
     }
 
     private void OnDrawGizmos()

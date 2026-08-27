@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemId: 100
   displayName: Iron Shield
-  description: Reduces incoming damage by 12%.
+  description: Reduces incoming damage by 20%.
   icon: {fileID: 1065521576455249907, guid: ea5c89c8176241545b04bcc201c18c5a, type: 3}
   itemType: 1
-  rarity: 1
+  rarity: 0
   attackDamage: 0
   attackCooldown: 0.4
   criticalChance: 0.15
   criticalDamageMultiplier: 1.5
-  damageReduction: 0.12
+  damageReduction: 0.2
   moveSpeedMultiplier: 1
   maxHealthBonus: 0
+  staminaRegenerationMultiplier: 1

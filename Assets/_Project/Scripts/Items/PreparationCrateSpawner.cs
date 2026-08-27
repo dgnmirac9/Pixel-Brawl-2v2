@@ -14,6 +14,26 @@ public class PreparationCrateSpawner : MonoBehaviour
     [SerializeField]
     private PreparationLootCrate preparationCratePrefab;
 
+    [Header("Item Database")]
+    [SerializeField]
+    private ItemCatalog itemCatalog;
+
+    [Header("Rarity Weights")]
+    [SerializeField, Min(0f)]
+    private float commonWeight = 50f;
+
+    [SerializeField, Min(0f)]
+    private float uncommonWeight = 28f;
+
+    [SerializeField, Min(0f)]
+    private float rareWeight = 14f;
+
+    [SerializeField, Min(0f)]
+    private float epicWeight = 6f;
+
+    [SerializeField, Min(0f)]
+    private float legendaryWeight = 2f;
+    
     [Header("Player 1 Room")]
     [SerializeField]
     private Transform[] room0SpawnPoints;
@@ -70,6 +90,16 @@ public class PreparationCrateSpawner : MonoBehaviour
         {
             Debug.LogError(
                 "PreparationCrate prefabı atanmamış."
+            );
+
+            return;
+        }
+        
+        if (itemCatalog == null)
+        {
+            Debug.LogError(
+                "PreparationCrateSpawner: " +
+                "ItemCatalog atanmamış."
             );
 
             return;
@@ -179,37 +209,42 @@ public class PreparationCrateSpawner : MonoBehaviour
         if (crateCount <= 0)
             return result;
 
-        // İlk sandık mutlaka bir kılıç verir.
-        result.Add(
-            GetRandomItem(weaponLoot)
-        );
+        // Her odada en az bir silah garanti.
+        ItemId selectedWeapon =
+            GetWeightedRandomItem(weaponLoot);
+
+        if (selectedWeapon != ItemId.None)
+        {
+            result.Add(selectedWeapon);
+        }
 
         List<ItemId> availablePassives =
             new(passiveLoot);
 
         while (result.Count < crateCount)
         {
-            if (availablePassives.Count == 0)
+            IReadOnlyList<ItemId> source =
+                availablePassives.Count > 0
+                    ? availablePassives
+                    : passiveLoot;
+
+            ItemId selectedPassive =
+                GetWeightedRandomItem(source);
+
+            if (selectedPassive == ItemId.None)
             {
-                result.Add(
-                    GetRandomItem(passiveLoot)
+                Debug.LogError(
+                    "Geçerli pasif loot seçilemedi."
                 );
 
-                continue;
+                break;
             }
 
-            int randomIndex =
-                Random.Range(
-                    0,
-                    availablePassives.Count
-                );
+            result.Add(selectedPassive);
 
-            result.Add(
-                availablePassives[randomIndex]
-            );
-
-            availablePassives.RemoveAt(
-                randomIndex
+            // Aynı odada aynı pasif tekrar çıkmasın.
+            availablePassives.Remove(
+                selectedPassive
             );
         }
 
@@ -258,26 +293,135 @@ public class PreparationCrateSpawner : MonoBehaviour
         }
     }
 
-    private ItemId GetRandomItem(
-        ItemId[] possibleItems)
+    private ItemId GetWeightedRandomItem(
+    IReadOnlyList<ItemId> possibleItems)
+{
+    if (possibleItems == null ||
+        possibleItems.Count == 0)
     {
-        if (possibleItems == null ||
-            possibleItems.Length == 0)
+        Debug.LogError(
+            "Loot listesi boş."
+        );
+
+        return ItemId.None;
+    }
+
+    List<ItemDefinition> validItems =
+        new();
+
+    foreach (ItemId itemId in possibleItems)
+    {
+        if (itemCatalog.TryGetItem(
+                itemId,
+                out ItemDefinition item))
         {
-            Debug.LogError(
-                "Loot listesi boş."
+            validItems.Add(item);
+        }
+    }
+
+    if (validItems.Count == 0)
+    {
+        Debug.LogError(
+            "Loot listesinde geçerli item yok."
+        );
+
+        return ItemId.None;
+    }
+
+    float totalWeight = 0f;
+
+    foreach (ItemDefinition item in validItems)
+    {
+        int rarityItemCount =
+            CountItemsWithRarity(
+                validItems,
+                item.Rarity
             );
 
-            return ItemId.None;
-        }
+        totalWeight +=
+            GetRarityWeight(item.Rarity) /
+            rarityItemCount;
+    }
 
-        return possibleItems[
+    // Bütün ağırlıklar yanlışlıkla sıfırsa
+    // normal rastgele seçime geri dön.
+    if (totalWeight <= 0f)
+    {
+        return validItems[
             Random.Range(
                 0,
-                possibleItems.Length
+                validItems.Count
             )
-        ];
+        ].Id;
     }
+
+    float randomValue =
+        Random.Range(0f, totalWeight);
+
+    foreach (ItemDefinition item in validItems)
+    {
+        int rarityItemCount =
+            CountItemsWithRarity(
+                validItems,
+                item.Rarity
+            );
+
+        float itemWeight =
+            GetRarityWeight(item.Rarity) /
+            rarityItemCount;
+
+        if (randomValue < itemWeight)
+            return item.Id;
+
+        randomValue -= itemWeight;
+    }
+
+    return validItems[
+        validItems.Count - 1
+    ].Id;
+}
+
+private int CountItemsWithRarity(
+    IReadOnlyList<ItemDefinition> items,
+    ItemRarity rarity)
+{
+    int count = 0;
+
+    foreach (ItemDefinition item in items)
+    {
+        if (item != null &&
+            item.Rarity == rarity)
+        {
+            count++;
+        }
+    }
+
+    return Mathf.Max(1, count);
+}
+
+private float GetRarityWeight(
+    ItemRarity rarity)
+{
+    return rarity switch
+    {
+        ItemRarity.Common =>
+            commonWeight,
+
+        ItemRarity.Uncommon =>
+            uncommonWeight,
+
+        ItemRarity.Rare =>
+            rareWeight,
+
+        ItemRarity.Epic =>
+            epicWeight,
+
+        ItemRarity.Legendary =>
+            legendaryWeight,
+
+        _ => 0f
+    };
+}
 
     private bool HaveSameItems(
         IReadOnlyList<ItemId> firstPlan,

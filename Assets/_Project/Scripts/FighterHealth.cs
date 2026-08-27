@@ -38,7 +38,35 @@ public class FighterHealth : NetworkBehaviour
     public int MaxHealth => GetEffectiveMaxHealth();
     public int CurrentHealth => currentHealth.Value;
     public bool IsAlive => isAlive.Value;
-    public int TeamId => (int)(OwnerClientId % 2);
+    public int TeamId
+    {
+        get
+        {
+            if (LobbyManager.Instance != null &&
+                LobbyManager.Instance.IsSpawned)
+            {
+                int playerSlot =
+                    LobbyManager.Instance
+                        .GetPlayerSlotIndex(
+                            OwnerClientId
+                        );
+
+                if (playerSlot >= 0)
+                    return playerSlot % 2;
+            }
+
+            // Lobby listesi henüz hazır değilse
+            // 1v1 için geçici güvenli eşleme.
+            if (NetworkManager != null &&
+                OwnerClientId ==
+                NetworkManager.ServerClientId)
+            {
+                return 0;
+            }
+
+            return 1;
+        }
+    }
     
     private void Awake()
     {

@@ -110,6 +110,26 @@ public class LobbyManager : NetworkBehaviour
 
         return connectedClientIds[index];
     }
+    
+    public int GetPlayerSlotIndex(
+        ulong clientId)
+    {
+        if (connectedClientIds == null)
+            return -1;
+
+        for (int index = 0;
+             index < connectedClientIds.Count;
+             index++)
+        {
+            if (connectedClientIds[index] ==
+                clientId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
 
     public bool IsPlayerReady(ulong clientId)
     {

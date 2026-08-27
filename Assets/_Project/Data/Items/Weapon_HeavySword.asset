@@ -17,7 +17,7 @@ MonoBehaviour:
   description: A slow but devastating heavy blade.
   icon: {fileID: -3828692541542408575, guid: a5b953103ae420b489e43b67c965fa10, type: 3}
   itemType: 0
-  rarity: 2
+  rarity: 3
   attackDamage: 28
   attackCooldown: 0.55
   criticalChance: 0.1
@@ -25,3 +25,4 @@ MonoBehaviour:
   damageReduction: 0
   moveSpeedMultiplier: 1
   maxHealthBonus: 0
+  staminaRegenerationMultiplier: 1

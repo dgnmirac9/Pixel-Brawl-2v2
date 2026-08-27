@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemId: 101
   displayName: Swift Boots
-  description: Increases movement speed by 12%.
+  description: Increases movement speed by 12% and stamina regeneration by 20%.
   icon: {fileID: -184172276, guid: ea5c89c8176241545b04bcc201c18c5a, type: 3}
   itemType: 1
   rarity: 1
@@ -25,3 +25,4 @@ MonoBehaviour:
   damageReduction: 0
   moveSpeedMultiplier: 1.12
   maxHealthBonus: 0
+  staminaRegenerationMultiplier: 1.2

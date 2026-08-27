@@ -43344,6 +43344,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PreparationCrateSpawner
   preparationCratePrefab: {fileID: 194192040300269054, guid: eae40e3a9637f7e4a894c5542aa669ed,
     type: 3}
+  itemCatalog: {fileID: 11400000, guid: df6d64d6bb390c54494d3316057e4f07, type: 2}
+  commonWeight: 50
+  uncommonWeight: 28
+  rareWeight: 14
+  epicWeight: 6
+  legendaryWeight: 2
   room0SpawnPoints:
   - {fileID: 1127896620}
   - {fileID: 438467495}

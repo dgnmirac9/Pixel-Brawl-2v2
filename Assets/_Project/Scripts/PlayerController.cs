@@ -172,7 +172,32 @@ public class PlayerController : NetworkBehaviour
             maxStamina + bonus
         );
     }
-    
+    private float GetEffectiveDashStaminaCost()
+    {
+        float multiplier =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalDashStaminaCostMultiplier
+                : 1f;
+
+        return Mathf.Max(
+            1f,
+            dashStaminaCost * multiplier
+        );
+    }
+    private float GetEffectiveDashCooldown()
+    {
+        float multiplier =
+            playerLoadout != null
+                ? playerLoadout
+                    .TotalDashCooldownMultiplier
+                : 1f;
+
+        return Mathf.Max(
+            0.05f,
+            dashCooldown * multiplier
+        );
+    }
     private float GetEffectiveStaminaRegeneration()
     {
         float multiplier =
@@ -280,7 +305,8 @@ public class PlayerController : NetworkBehaviour
         // Dash (Space)
         if (Input.GetKeyDown(KeyCode.Space) &&
             canDash &&
-            currentStamina >= dashStaminaCost)
+            currentStamina >=
+            GetEffectiveDashStaminaCost())
         {
             SpendDashStamina();
 
@@ -538,7 +564,7 @@ public class PlayerController : NetworkBehaviour
         isDashing = false;
 
         yield return new WaitForSeconds(
-            dashCooldown
+            GetEffectiveDashCooldown()
         );
 
         canDash = true;
@@ -546,11 +572,14 @@ public class PlayerController : NetworkBehaviour
     
     private void SpendDashStamina()
     {
+        float effectiveDashCost =
+            GetEffectiveDashStaminaCost();
+
         currentStamina =
             Mathf.Max(
                 0f,
                 currentStamina -
-                dashStaminaCost
+                effectiveDashCost
             );
 
         staminaRegenerationStartTime =

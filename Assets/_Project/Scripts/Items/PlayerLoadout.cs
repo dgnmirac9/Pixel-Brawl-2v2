@@ -157,6 +157,61 @@ public class PlayerLoadout : NetworkBehaviour
             );
         }
     }
+    public float TotalDashStaminaCostMultiplier
+    {
+        get
+        {
+            float multiplier = 1f;
+
+            for (int index = 0;
+                 index < PassiveSlotCount;
+                 index++)
+            {
+                ItemDefinition item =
+                    GetPassiveItem(index);
+
+                if (item != null)
+                {
+                    multiplier *=
+                        item.DashStaminaCostMultiplier;
+                }
+            }
+
+            return Mathf.Clamp(
+                multiplier,
+                0.25f,
+                2f
+            );
+        }
+    }
+    
+    public float TotalDashCooldownMultiplier
+    {
+        get
+        {
+            float multiplier = 1f;
+
+            for (int index = 0;
+                 index < PassiveSlotCount;
+                 index++)
+            {
+                ItemDefinition item =
+                    GetPassiveItem(index);
+
+                if (item != null)
+                {
+                    multiplier *=
+                        item.DashCooldownMultiplier;
+                }
+            }
+
+            return Mathf.Clamp(
+                multiplier,
+                0.25f,
+                2f
+            );
+        }
+    }
     
     public float TotalStaminaRegenerationMultiplier
     {

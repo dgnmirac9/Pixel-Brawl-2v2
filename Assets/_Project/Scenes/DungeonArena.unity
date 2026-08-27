@@ -19636,7 +19636,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 16, y: -76}
-  m_SizeDelta: {x: 268, y: 67}
+  m_SizeDelta: {x: 268, y: 100}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &850129118
 MonoBehaviour:
@@ -19702,7 +19702,7 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 0
+  m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
@@ -44092,7 +44092,7 @@ MonoBehaviour:
   - {fileID: 639497297}
   - {fileID: 1031383251}
   weaponLoot: 010002000300040005000600
-  passiveLoot: 6400650066006700
+  passiveLoot: 64006500660067006800
 --- !u!4 &1916600114
 Transform:
   m_ObjectHideFlags: 0

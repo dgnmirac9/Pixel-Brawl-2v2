@@ -127,8 +127,7 @@ public class ItemTooltipUI : MonoBehaviour
         {
             float attacksPerSecond =
                 item.AttackCooldown > 0f
-                    ? 1f /
-                      item.AttackCooldown
+                    ? 1f / item.AttackCooldown
                     : 0f;
 
             builder.AppendLine(
@@ -178,6 +177,62 @@ public class ItemTooltipUI : MonoBehaviour
             builder.AppendLine(
                 $"Maximum Health: " +
                 $"{item.MaxHealthBonus:+0;-0;0}"
+            );
+        }
+
+        if (Mathf.Abs(
+                item.MaxStaminaBonus) >
+            0.01f)
+        {
+            builder.AppendLine(
+                $"Maximum Stamina: " +
+                $"{item.MaxStaminaBonus:+0;-0;0}"
+            );
+        }
+
+        float dashCostChange =
+        (
+            item.DashStaminaCostMultiplier -
+            1f
+        ) * 100f;
+
+        if (Mathf.Abs(dashCostChange) > 0.01f)
+        {
+            builder.AppendLine(
+                $"Dash Stamina Cost: " +
+                $"{dashCostChange:+0;-0;0}%"
+            );
+        }
+        
+        float dashCooldownChange =
+        (
+            item.DashCooldownMultiplier -
+            1f
+        ) * 100f;
+
+        if (Mathf.Abs(
+                dashCooldownChange) >
+            0.01f)
+        {
+            builder.AppendLine(
+                $"Dash Cooldown: " +
+                $"{dashCooldownChange:+0;-0;0}%"
+            );
+        }
+        
+        float staminaRecoveryBonus =
+        (
+            item.StaminaRegenerationMultiplier -
+            1f
+        ) * 100f;
+
+        if (Mathf.Abs(
+                staminaRecoveryBonus) >
+            0.01f)
+        {
+            builder.AppendLine(
+                $"Stamina Recovery: " +
+                $"{staminaRecoveryBonus:+0;-0;0}%"
             );
         }
 

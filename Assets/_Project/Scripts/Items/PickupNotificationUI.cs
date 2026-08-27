@@ -13,6 +13,9 @@ public class PickupNotificationUI : MonoBehaviour
     private Image itemIcon;
 
     [SerializeField]
+    private Image rarityAccent;
+    
+    [SerializeField]
     private TMP_Text itemNameText;
 
     [SerializeField]
@@ -76,13 +79,21 @@ public class PickupNotificationUI : MonoBehaviour
             );
         }
 
+        Color rarityColor =
+            GetRarityColor(
+                item.Rarity
+            );
+
         if (itemIcon != null)
         {
-            itemIcon.sprite = item.Icon;
+            itemIcon.sprite =
+                item.Icon;
+
             itemIcon.enabled =
                 item.Icon != null;
 
-            itemIcon.preserveAspect = true;
+            itemIcon.preserveAspect =
+                true;
         }
 
         if (itemNameText != null)
@@ -100,9 +111,13 @@ public class PickupNotificationUI : MonoBehaviour
                     .ToUpperInvariant();
 
             rarityText.color =
-                GetRarityColor(
-                    item.Rarity
-                );
+                rarityColor;
+        }
+
+        if (rarityAccent != null)
+        {
+            rarityAccent.color =
+                rarityColor;
         }
 
         if (audioSource != null &&

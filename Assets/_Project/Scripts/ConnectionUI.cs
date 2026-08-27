@@ -18,6 +18,12 @@ public class ConnectionUI : MonoBehaviour
     [SerializeField] private Button joinButton;
     [SerializeField] private Button disconnectButton;
     [SerializeField] private Button copyCodeButton;
+    [SerializeField] private TMP_Text copyButtonText;
+
+    [SerializeField, Min(0f)] private float copyCooldownDuration = 3f;
+    private Coroutine copyCooldownRoutine;
+    private bool copyCooldownActive;
+    private string defaultCopyButtonText = "COPY";
 
     [Header("Connection Information")] [SerializeField]
     private TMP_Text generatedCodeText;
@@ -33,6 +39,12 @@ public class ConnectionUI : MonoBehaviour
 
     private async void Start()
     {
+        if (copyButtonText != null)
+        {
+            defaultCopyButtonText =
+                copyButtonText.text;
+        }
+
         ShowConnectionMenu();
 
         relayManager = RelayManager.Instance;
@@ -97,20 +109,66 @@ public class ConnectionUI : MonoBehaviour
 
     private void HandleCopyCodeClicked()
     {
+        if (copyCooldownActive)
+            return;
+
         if (relayManager == null ||
             networkManager == null ||
             !networkManager.IsListening ||
             string.IsNullOrEmpty(
                 relayManager.CurrentJoinCode))
         {
-            SetStatus("NO JOIN CODE TO COPY");
+            SetStatus(
+                "NO JOIN CODE TO COPY"
+            );
+
             return;
         }
 
         GUIUtility.systemCopyBuffer =
             relayManager.CurrentJoinCode;
 
-        SetStatus("JOIN CODE COPIED");
+        SetStatus(
+            "JOIN CODE COPIED"
+        );
+
+        copyCooldownRoutine =
+            StartCoroutine(
+                RunCopyButtonCooldown()
+            );
+    }
+
+    private IEnumerator
+        RunCopyButtonCooldown()
+    {
+        copyCooldownActive = true;
+
+        if (copyCodeButton != null)
+        {
+            copyCodeButton.interactable =
+                false;
+        }
+
+        if (copyButtonText != null)
+        {
+            copyButtonText.text =
+                "COPIED";
+        }
+
+        yield return new WaitForSecondsRealtime(
+            copyCooldownDuration
+        );
+
+        copyCooldownActive = false;
+        copyCooldownRoutine = null;
+
+        if (copyButtonText != null)
+        {
+            copyButtonText.text =
+                defaultCopyButtonText;
+        }
+
+        RefreshUI();
     }
 
     private async void HandleHostClicked()
@@ -481,6 +539,7 @@ public class ConnectionUI : MonoBehaviour
         {
             copyCodeButton.interactable =
                 networkRunning &&
+                !copyCooldownActive &&
                 !string.IsNullOrEmpty(joinCode);
         }
 

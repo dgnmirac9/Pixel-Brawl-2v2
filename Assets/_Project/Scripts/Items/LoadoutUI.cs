@@ -3,12 +3,9 @@ using UnityEngine;
 
 public class LoadoutUI : MonoBehaviour
 {
-    [Header("Slots")]
-    [SerializeField]
-    private ItemSlotUI weaponSlot;
+    [Header("Slots")] [SerializeField] private ItemSlotUI weaponSlot;
 
-    [SerializeField]
-    private ItemSlotUI[] passiveSlots;
+    [SerializeField] private ItemSlotUI[] passiveSlots;
 
     private PlayerLoadout localLoadout;
     private Coroutine bindRoutine;

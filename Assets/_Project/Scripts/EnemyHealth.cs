@@ -5,8 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyHealth : NetworkBehaviour
 {
-    [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 100;
+    [Header("Health Settings")] [SerializeField]
+    private int maxHealth = 100;
+
     private NetworkVariable<int> currentHealth =
         new NetworkVariable<int>(
             0,
@@ -14,14 +15,16 @@ public class EnemyHealth : NetworkBehaviour
             NetworkVariableWritePermission.Server
         );
 
-    [Header("Knockback Settings")] 
-    [SerializeField] private float knockbackForce = 5f;
+    [Header("Knockback Settings")] [SerializeField]
+    private float knockbackForce = 5f;
+
     [SerializeField] private float knockbackDuration = 0.15f;
-    
-    [Header("Visual Feedback")]
-    [SerializeField] private Color damageColor = Color.red;
+
+    [Header("Visual Feedback")] [SerializeField]
+    private Color damageColor = Color.red;
+
     [SerializeField] private float flashDuration = 0.1f;
-    
+
     [SerializeField] private HealthBarUI healthBar; // Can barı referansı
 
     private Camera mainCamera;
@@ -31,7 +34,7 @@ public class EnemyHealth : NetworkBehaviour
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
     private Collider2D[] enemyColliders;
-    
+
     private void Awake()
     {
         enemyColliders = GetComponentsInChildren<Collider2D>(true);
@@ -110,7 +113,7 @@ public class EnemyHealth : NetworkBehaviour
         //düşmana anlık kuvvet uygula
         rb.linearVelocity = direction * knockbackForce;
         yield return new WaitForSeconds(knockbackDuration);
-        
+
         //kuvvet süresi bitince hareketi sıfırla
         rb.linearVelocity = Vector2.zero;
     }
@@ -124,6 +127,7 @@ public class EnemyHealth : NetworkBehaviour
             spriteRenderer.color = originalColor;
         }
     }
+
     private void HideEnemy()
     {
         if (spriteRenderer != null)
@@ -153,6 +157,7 @@ public class EnemyHealth : NetworkBehaviour
             }
         }
     }
+
     private void Die()
     {
         if (!IsServer)

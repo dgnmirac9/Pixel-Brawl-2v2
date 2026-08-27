@@ -6,21 +6,22 @@ using System.Collections;
 
 public class ConnectionUI : MonoBehaviour
 {
-    [Header("Panels")]
-    [SerializeField] private GameObject preGameRoot;
+    [Header("Panels")] [SerializeField] private GameObject preGameRoot;
     [SerializeField] private GameObject connectionView;
     [SerializeField] private GameObject waitingRoomPanel;
     [SerializeField] private GameObject matchCanvas;
 
-    [Header("Connection Controls")]
-    [SerializeField] private Button hostButton;
+    [Header("Connection Controls")] [SerializeField]
+    private Button hostButton;
+
     [SerializeField] private TMP_InputField joinCodeInput;
     [SerializeField] private Button joinButton;
     [SerializeField] private Button disconnectButton;
     [SerializeField] private Button copyCodeButton;
-    
-    [Header("Connection Information")]
-    [SerializeField] private TMP_Text generatedCodeText;
+
+    [Header("Connection Information")] [SerializeField]
+    private TMP_Text generatedCodeText;
+
     [SerializeField] private TMP_Text statusText;
 
     private LobbyManager lobbyManager;
@@ -50,7 +51,7 @@ public class ConnectionUI : MonoBehaviour
             Debug.LogError("ConnectionUI: NetworkManager bulunamadı.");
             return;
         }
-        
+
         hostButton.onClick.AddListener(HandleHostClicked);
         joinButton.onClick.AddListener(HandleJoinClicked);
         disconnectButton.onClick.AddListener(
@@ -93,7 +94,7 @@ public class ConnectionUI : MonoBehaviour
         SetButtonsInteractable(true);
         RefreshJoinButton();
     }
-    
+
     private void HandleCopyCodeClicked()
     {
         if (relayManager == null ||
@@ -111,7 +112,7 @@ public class ConnectionUI : MonoBehaviour
 
         SetStatus("JOIN CODE COPIED");
     }
-    
+
     private async void HandleHostClicked()
     {
         SetButtonsInteractable(false);
@@ -191,7 +192,7 @@ public class ConnectionUI : MonoBehaviour
     {
         if (disconnecting)
             return;
-        
+
         if (networkManager == null)
             return;
 
@@ -210,10 +211,10 @@ public class ConnectionUI : MonoBehaviour
 
             disconnectButton.gameObject.SetActive(true);
             return;
-        } 
-        
+        }
+
         relayManager?.ResetSessionState();
-        
+
         ShowConnectionMenu();
         SetButtonsInteractable(true);
         RefreshJoinButton();
@@ -230,7 +231,7 @@ public class ConnectionUI : MonoBehaviour
                 ShutdownNetworkRoutine()
             );
     }
-    
+
     private IEnumerator ShutdownNetworkRoutine()
     {
         disconnecting = true;
@@ -379,7 +380,7 @@ public class ConnectionUI : MonoBehaviour
             );
         }
     }
-    
+
     private void EnterGame()
     {
         if (connectionView != null)
@@ -529,7 +530,7 @@ public class ConnectionUI : MonoBehaviour
     {
         ApplyStatus(message);
     }
-    
+
     private void ApplyStatus(string message)
     {
         if (statusText == null)
@@ -574,7 +575,7 @@ public class ConnectionUI : MonoBehaviour
                 new Color32(255, 244, 214, 255);
         }
     }
-    
+
     private void OnDestroy()
     {
         if (hostButton != null)
@@ -616,14 +617,14 @@ public class ConnectionUI : MonoBehaviour
             networkManager.OnClientDisconnectCallback -=
                 HandleClientDisconnected;
         }
-        
+
         if (copyCodeButton != null)
         {
             copyCodeButton.onClick.RemoveListener(
                 HandleCopyCodeClicked
             );
         }
-        
+
         if (lobbyManager != null)
         {
             lobbyManager.MatchStarted -=

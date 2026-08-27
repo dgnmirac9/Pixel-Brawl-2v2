@@ -7,28 +7,19 @@ using UnityEngine.UI;
 [RequireComponent(typeof(CanvasGroup))]
 public class ItemTooltipUI : MonoBehaviour
 {
-    [Header("Visuals")]
-    [SerializeField]
-    private Image itemIcon;
+    [Header("Visuals")] [SerializeField] private Image itemIcon;
 
-    [SerializeField]
-    private Image rarityAccent;
+    [SerializeField] private Image rarityAccent;
 
-    [Header("Texts")]
-    [SerializeField]
-    private TMP_Text itemNameText;
+    [Header("Texts")] [SerializeField] private TMP_Text itemNameText;
 
-    [SerializeField]
-    private TMP_Text rarityText;
+    [SerializeField] private TMP_Text rarityText;
 
-    [SerializeField]
-    private TMP_Text statsText;
+    [SerializeField] private TMP_Text statsText;
 
-    [SerializeField]
-    private TMP_Text descriptionText;
+    [SerializeField] private TMP_Text descriptionText;
 
-    [Header("Animation")]
-    [SerializeField, Min(0.01f)]
+    [Header("Animation")] [SerializeField, Min(0.01f)]
     private float fadeDuration = 0.12f;
 
     private CanvasGroup canvasGroup;

@@ -34,50 +34,38 @@ public enum ItemRarity : byte
 )]
 public class ItemDefinition : ScriptableObject
 {
-    [Header("Identity")]
-    [SerializeField]
-    private ItemId itemId;
+    [Header("Identity")] [SerializeField] private ItemId itemId;
 
-    [SerializeField]
-    private string displayName;
+    [SerializeField] private string displayName;
 
-    [SerializeField, TextArea(2, 5)]
-    private string description;
+    [SerializeField, TextArea(2, 5)] private string description;
 
-    [SerializeField]
-    private Sprite icon;
+    [SerializeField] private Sprite icon;
 
-    [SerializeField]
-    private ItemType itemType;
+    [SerializeField] private ItemType itemType;
 
-    [SerializeField]
-    private ItemRarity rarity;
+    [SerializeField] private ItemRarity rarity;
 
-    [Header("Weapon Stats")]
-    [SerializeField, Min(0)]
+    [Header("World Pickup Visual")] [SerializeField, Range(0.5f, 2f)]
+    private float worldVisualScale = 1f;
+
+    [Header("Weapon Stats")] [SerializeField, Min(0)]
     private int attackDamage;
 
-    [SerializeField, Min(0.05f)]
-    private float attackCooldown = 0.4f;
+    [SerializeField, Min(0.05f)] private float attackCooldown = 0.4f;
 
-    [SerializeField, Range(0f, 1f)]
-    private float criticalChance = 0.15f;
+    [SerializeField, Range(0f, 1f)] private float criticalChance = 0.15f;
 
-    [SerializeField, Min(1f)]
-    private float criticalDamageMultiplier = 1.5f;
+    [SerializeField, Min(1f)] private float criticalDamageMultiplier = 1.5f;
 
-    [Header("Passive Stats")]
-    [SerializeField, Range(0f, 0.9f)]
+    [Header("Passive Stats")] [SerializeField, Range(0f, 0.9f)]
     private float damageReduction;
 
-    [SerializeField, Min(0.01f)]
-    private float moveSpeedMultiplier = 1f;
+    [SerializeField, Min(0.01f)] private float moveSpeedMultiplier = 1f;
 
-    [SerializeField, Min(0)]
-    private int maxHealthBonus;
-    
-    [SerializeField, Min(0.01f)]
-    private float staminaRegenerationMultiplier = 1f;
+    [SerializeField, Min(0)] private int maxHealthBonus;
+
+    [SerializeField, Min(0.01f)] private float staminaRegenerationMultiplier = 1f;
 
     public ItemId Id => itemId;
     public string DisplayName => displayName;
@@ -86,11 +74,16 @@ public class ItemDefinition : ScriptableObject
     public ItemType Type => itemType;
     public ItemRarity Rarity => rarity;
 
+    public float WorldVisualScale =>
+        worldVisualScale;
+
     public int AttackDamage => attackDamage;
     public float AttackCooldown => attackCooldown;
     public float CriticalChance => criticalChance;
+
     public float StaminaRegenerationMultiplier =>
         staminaRegenerationMultiplier;
+
     public float CriticalDamageMultiplier =>
         criticalDamageMultiplier;
 

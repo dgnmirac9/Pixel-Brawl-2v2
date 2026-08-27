@@ -18,6 +18,7 @@ MonoBehaviour:
   icon: {fileID: -1218736642286713944, guid: 9ce9707d97db91e43bc00898cdc298fd, type: 3}
   itemType: 0
   rarity: 2
+  worldVisualScale: 1.35
   attackDamage: 16
   attackCooldown: 0.28
   criticalChance: 0.25
@@ -25,3 +26,4 @@ MonoBehaviour:
   damageReduction: 0
   moveSpeedMultiplier: 1
   maxHealthBonus: 0
+  staminaRegenerationMultiplier: 1

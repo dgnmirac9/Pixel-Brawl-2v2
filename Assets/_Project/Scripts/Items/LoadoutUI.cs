@@ -7,6 +7,9 @@ public class LoadoutUI : MonoBehaviour
 
     [SerializeField] private ItemSlotUI[] passiveSlots;
 
+    [Header("Pickup Notification")] [SerializeField]
+    private PickupNotificationUI pickupNotification;
+
     private PlayerLoadout localLoadout;
     private Coroutine bindRoutine;
 
@@ -51,9 +54,26 @@ public class LoadoutUI : MonoBehaviour
         localLoadout.LoadoutChanged +=
             RefreshUI;
 
+        localLoadout.ItemCollected -=
+            HandleItemCollected;
+
+        localLoadout.ItemCollected +=
+            HandleItemCollected;
+
         RefreshUI();
 
         bindRoutine = null;
+    }
+
+    private void HandleItemCollected(
+        ItemDefinition item)
+    {
+        if (pickupNotification != null)
+        {
+            pickupNotification.ShowItem(
+                item
+            );
+        }
     }
 
     private void RefreshUI()
@@ -118,6 +138,9 @@ public class LoadoutUI : MonoBehaviour
         {
             localLoadout.LoadoutChanged -=
                 RefreshUI;
+
+            localLoadout.ItemCollected -=
+                HandleItemCollected;
         }
 
         localLoadout = null;

@@ -7,8 +7,7 @@ public class PlayerLoadout : NetworkBehaviour
 {
     public const int PassiveSlotCount = 3;
 
-    [Header("Item Database")]
-    [SerializeField]
+    [Header("Item Database")] [SerializeField]
     private ItemCatalog itemCatalog;
 
     private readonly NetworkVariable<ItemId>
@@ -40,6 +39,9 @@ public class PlayerLoadout : NetworkBehaviour
         );
 
     public event Action LoadoutChanged;
+
+    public event Action<ItemDefinition>
+        ItemCollected;
 
     public ItemCatalog Catalog =>
         itemCatalog;
@@ -128,7 +130,7 @@ public class PlayerLoadout : NetworkBehaviour
             return Mathf.Max(0, totalBonus);
         }
     }
-    
+
     public float TotalStaminaRegenerationMultiplier
     {
         get
@@ -155,7 +157,7 @@ public class PlayerLoadout : NetworkBehaviour
             );
         }
     }
-    
+
     public override void OnNetworkSpawn()
     {
         equippedWeaponId.OnValueChanged +=
@@ -208,7 +210,8 @@ public class PlayerLoadout : NetworkBehaviour
         );
     }
 
-    public bool ServerTryAddItem(ItemId itemId)
+    public bool ServerTryAddItem(
+        ItemId itemId)
     {
         if (!IsServer)
             return false;
@@ -229,24 +232,50 @@ public class PlayerLoadout : NetworkBehaviour
             return false;
         }
 
+        bool itemAdded = false;
+
         if (item.Type == ItemType.Weapon)
         {
             equippedWeaponId.Value =
                 item.Id;
 
+            itemAdded = true;
+
             Debug.Log(
-                $"{name}, {item.DisplayName} kuşandı."
+                $"{name}, " +
+                $"{item.DisplayName} kuşandı."
+            );
+        }
+        else if (item.Type ==
+                 ItemType.Passive)
+        {
+            itemAdded =
+                ServerTryAddPassive(item);
+        }
+
+        if (!itemAdded)
+            return false;
+
+        NotifyItemCollectedRpc(
+            item.Id
+        );
+
+        return true;
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void NotifyItemCollectedRpc(
+        ItemId collectedItemId)
+    {
+        ItemDefinition item =
+            GetDefinition(
+                collectedItemId
             );
 
-            return true;
-        }
+        if (item == null)
+            return;
 
-        if (item.Type == ItemType.Passive)
-        {
-            return ServerTryAddPassive(item);
-        }
-
-        return false;
+        ItemCollected?.Invoke(item);
     }
 
     public void ServerClearLoadout()
@@ -328,4 +357,4 @@ public class PlayerLoadout : NetworkBehaviour
     {
         LoadoutChanged?.Invoke();
     }
-}   
+}

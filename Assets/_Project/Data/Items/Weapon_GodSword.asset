@@ -10,20 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 65f2210ce1802f247b73571772e7d5a8, type: 3}
-  m_Name: Weapon_QuickfangSword
+  m_Name: Weapon_GodSword
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemId: 4
-  displayName: Quickfang Sword
-  description: A lightweight blade built for relentless attacks.
-  icon: {fileID: 21300000, guid: 12e5f48561241f746b86e172c24bd189, type: 3}
+  itemId: 7
+  displayName: Sword of God
+  description: 'A celestial blade forged beyond the stars.
+
+    Its reach and critical
+    power make every opening deadly.'
+  icon: {fileID: 21300000, guid: 95abb6580d5b92c4bbe81e822e782a29, type: 3}
   itemType: 0
-  rarity: 1
+  rarity: 4
   worldVisualScale: 1
-  attackDamage: 13
-  attackCooldown: 0.24
-  attackReachMultiplier: 0.85
-  criticalChance: 0.1
-  criticalDamageMultiplier: 1.35
+  attackDamage: 25
+  attackCooldown: 0.45
+  attackReachMultiplier: 1.2
+  criticalChance: 0.25
+  criticalDamageMultiplier: 2.4
   damageReduction: 0
   moveSpeedMultiplier: 1
   maxHealthBonus: 0

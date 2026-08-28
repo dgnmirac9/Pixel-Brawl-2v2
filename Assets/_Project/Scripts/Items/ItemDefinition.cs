@@ -10,12 +10,14 @@ public enum ItemId : ushort
     QuickfangSword = 4,
     ExecutionerSword = 5,
     LuckyRapier = 6,
-
+    GodSword = 7,
+    
     IronShield = 100,
     SwiftBoots = 101,
     VitalityRuby = 102,
     StaminaCrystal = 103,
-    DashFeather = 104
+    DashFeather = 104,
+    MomentumCrystal = 105
 }
 
 public enum ItemType : byte
@@ -58,6 +60,8 @@ public class ItemDefinition : ScriptableObject
     private int attackDamage;
 
     [SerializeField, Min(0.05f)] private float attackCooldown = 0.4f;
+    
+    [SerializeField, Range(0.75f, 1.5f)] private float attackReachMultiplier = 1f;
 
     [SerializeField, Range(0f, 1f)] private float criticalChance = 0.15f;
 
@@ -90,6 +94,7 @@ public class ItemDefinition : ScriptableObject
 
     public int AttackDamage => attackDamage;
     public float AttackCooldown => attackCooldown;
+    public float AttackReachMultiplier => attackReachMultiplier;
     public float CriticalChance => criticalChance;
 
     public float StaminaRegenerationMultiplier =>

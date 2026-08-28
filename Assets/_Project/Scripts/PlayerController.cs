@@ -8,61 +8,52 @@ using System.Collections.Generic;
 [RequireComponent(typeof(SpriteRenderer))]
 public class PlayerController : NetworkBehaviour
 {
-    [Header("Movement Settings")]
-    [SerializeField] private float moveSpeed = 5f;
-    
-    [SerializeField, Min(0f)]
-    private float acceleration = 25f;
+    [Header("Movement Settings")] [SerializeField]
+    private float moveSpeed = 5f;
 
-    [SerializeField, Min(0f)]
-    private float deceleration = 35f;
+    [SerializeField, Min(0f)] private float acceleration = 25f;
 
-    [Header("Stamina Settings")]
-    [SerializeField, Min(1f)]
+    [SerializeField, Min(0f)] private float deceleration = 35f;
+
+    [Header("Stamina Settings")] [SerializeField, Min(1f)]
     private float maxStamina = 100f;
 
-    [SerializeField, Min(0f)]
-    private float dashStaminaCost = 50f;
+    [SerializeField, Min(0f)] private float dashStaminaCost = 50f;
 
-    [SerializeField, Min(0f)]
-    private float staminaRegenerationPerSecond = 50f;
+    [SerializeField, Min(0f)] private float staminaRegenerationPerSecond = 50f;
 
-    [SerializeField, Min(0f)]
-    private float staminaRegenerationDelay = 1.25f;
+    [SerializeField, Min(0f)] private float staminaRegenerationDelay = 1.25f;
 
-    [SerializeField]
-    private StaminaBarUI staminaBar;
-    
-    [Header("Dash Settings")]
-    [SerializeField] private float dashSpeed = 12f;
+    [SerializeField] private StaminaBarUI staminaBar;
+
+    [Header("Dash Settings")] [SerializeField]
+    private float dashSpeed = 12f;
+
     [SerializeField] private float dashDuration = 0.2f;
     [SerializeField] private float dashCooldown = 0.8f;
-    [SerializeField, Min(0.01f)]
-    private float dashRecoveryDuration = 0.15f;
-    
-    [Header("Combat Settings")]
-    [SerializeField] private Transform attackPoint;      // Kılıç vuruş merkezinin noktası
-    [SerializeField] private float attackRange = 0.5f;     // Vuruş alanının yarıçapı
-    [SerializeField] private int attackDamage = 20;       // Vuruş Hasarı
-    
-    [Header("Attack Rate Settings")]
-    [SerializeField] private float attackCooldown = 0.4f;
+    [SerializeField, Min(0.01f)] private float dashRecoveryDuration = 0.15f;
+
+    [Header("Combat Settings")] [SerializeField]
+    private Transform attackPoint; // Kılıç vuruş merkezinin noktası
+
+    [SerializeField] private float attackRange = 0.5f; // Vuruş alanının yarıçapı
+    [SerializeField] private int attackDamage = 20; // Vuruş Hasarı
+
+    [Header("Attack Rate Settings")] [SerializeField]
+    private float attackCooldown = 0.4f;
+
     private float nextAttackTime = 0f;
-    
-    [Header("Critical Hit Settings")]
-    [SerializeField, Range(0f, 1f)]
+
+    [Header("Critical Hit Settings")] [SerializeField, Range(0f, 1f)]
     private float criticalChance = 0.15f;
 
-    [SerializeField, Min(1f)]
-    private float criticalDamageMultiplier = 1.5f;
-    
-    [Header("Critical Knockback Settings")]
-    [SerializeField, Min(0f)]
+    [SerializeField, Min(1f)] private float criticalDamageMultiplier = 1.5f;
+
+    [Header("Critical Knockback Settings")] [SerializeField, Min(0f)]
     private float criticalKnockbackDistance = 1.8f;
 
-    [SerializeField, Min(0.01f)]
-    private float criticalKnockbackDuration = 0.18f;
-    
+    [SerializeField, Min(0.01f)] private float criticalKnockbackDuration = 0.18f;
+
     // Referanslar
     private PlayerLoadout playerLoadout;
     private bool canControl = true;
@@ -74,12 +65,11 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Transform aimOrigin;
     private float attackPointDistance;
     private NetworkAnimator networkAnimator;
-    
+
     // Durumlar
-    
-    [SerializeField, Min(0.1f)]
-    private float breakableValidationDistance = 2.5f;
-    
+
+    [SerializeField, Min(0.1f)] private float breakableValidationDistance = 2.5f;
+
     private float serverKnockbackValidUntil;
     private Vector2 currentMoveVelocity;
     private Vector2 moveInput;
@@ -93,24 +83,24 @@ public class PlayerController : NetworkBehaviour
     private float nextStaminaNetworkSyncTime;
     private const float StaminaSyncInterval = 0.1f;
 
-    
+
     private NetworkVariable<Vector2> networkAimDirection =
         new NetworkVariable<Vector2>(
             Vector2.right,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner
         );
-    
+
     private readonly NetworkVariable<float>
         networkStamina = new(
             100f,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner
         );
-    
+
     private float nextServerAttackTime;
     private const float AimSyncThreshold = 0.0025f;
-    
+
     private void Awake()
     {
         networkAnimator = GetComponent<NetworkAnimator>();
@@ -132,14 +122,14 @@ public class PlayerController : NetworkBehaviour
                 attackPoint.position
             );
         }
-        
+
         lastEffectiveMaxStamina = GetEffectiveMaxStamina();
 
         currentStamina = lastEffectiveMaxStamina;
 
         UpdateStaminaBar();
     }
-    
+
     private ItemDefinition GetEquippedWeapon()
     {
         if (playerLoadout == null)
@@ -172,6 +162,7 @@ public class PlayerController : NetworkBehaviour
             maxStamina + bonus
         );
     }
+
     private float GetEffectiveDashStaminaCost()
     {
         float multiplier =
@@ -185,6 +176,7 @@ public class PlayerController : NetworkBehaviour
             dashStaminaCost * multiplier
         );
     }
+
     private float GetEffectiveDashCooldown()
     {
         float multiplier =
@@ -198,6 +190,7 @@ public class PlayerController : NetworkBehaviour
             dashCooldown * multiplier
         );
     }
+
     private float GetEffectiveStaminaRegeneration()
     {
         float multiplier =
@@ -210,7 +203,7 @@ public class PlayerController : NetworkBehaviour
             staminaRegenerationPerSecond *
             multiplier;
     }
-    
+
     private int GetEffectiveAttackDamage()
     {
         ItemDefinition weapon =
@@ -232,6 +225,31 @@ public class PlayerController : NetworkBehaviour
                 weapon.AttackCooldown
             )
             : attackCooldown;
+    }
+
+    private float GetEffectiveAttackReach()
+    {
+        ItemDefinition weapon =
+            GetEquippedWeapon();
+
+        float reachMultiplier =
+            weapon != null
+                ? Mathf.Clamp(
+                    weapon.AttackReachMultiplier,
+                    0.75f,
+                    1.5f
+                )
+                : 1f;
+
+        // Eski dairenin en ileri erişimi:
+        // merkez mesafesi + daire yarıçapı.
+        float baseForwardReach =
+            attackPointDistance +
+            attackRange;
+
+        return
+            baseForwardReach *
+            reachMultiplier;
     }
 
     private float GetEffectiveCriticalChance()
@@ -259,7 +277,7 @@ public class PlayerController : NetworkBehaviour
             )
             : criticalDamageMultiplier;
     }
-    
+
     private void Update()
     {
         if (!IsOwner)
@@ -301,7 +319,7 @@ public class PlayerController : NetworkBehaviour
                 Time.time +
                 GetEffectiveAttackCooldown();
         }
-        
+
         // Dash (Space)
         if (Input.GetKeyDown(KeyCode.Space) &&
             canDash &&
@@ -351,6 +369,7 @@ public class PlayerController : NetworkBehaviour
             Time.fixedDeltaTime
         );
     }
+
     private void UpdateAnimations()
     {
         if (anim == null) return;
@@ -364,6 +383,7 @@ public class PlayerController : NetworkBehaviour
         // Hareket ediyorsa AnimState = 1 (Run), duruyorsa AnimState = 0 (Idle)
         anim.SetInteger("AnimState", speed > 0.1f ? 1 : 0);
     }
+
     private void HandleAiming()
     {
         if (mainCamera == null)
@@ -418,13 +438,14 @@ public class PlayerController : NetworkBehaviour
             isDashing = false;
             isKnockedBack = false;
             canDash = true;
-            
+
             if (IsOwner)
             {
                 ResetStamina();
             }
         }
     }
+
     public void ServerMoveToSpawn(Vector3 spawnPosition)
     {
         if (!IsServer)
@@ -444,7 +465,7 @@ public class PlayerController : NetworkBehaviour
         moveInput = Vector2.zero;
         rb.linearVelocity = Vector2.zero;
         currentMoveVelocity = Vector2.zero;
-        
+
         rb.position = new Vector2(
             targetPosition.x,
             targetPosition.y
@@ -456,6 +477,7 @@ public class PlayerController : NetworkBehaviour
             transform.position.z
         );
     }
+
     private void PerformAttack()
     {
         // Animasyon sahibinde hemen oynar ve NetworkAnimator paylaşır.
@@ -480,12 +502,84 @@ public class PlayerController : NetworkBehaviour
     //editör ekranında hitbox'u görmemizi sağlayacak
     private void OnDrawGizmosSelected()
     {
-        if (attackPoint == null) return;
+        if (aimOrigin == null ||
+            attackPoint == null)
+        {
+            return;
+        }
+
+        Vector2 originPosition =
+            aimOrigin.position;
+
+        Vector2 direction =
+            (Vector2)attackPoint.position -
+            originPosition;
+
+        if (direction.sqrMagnitude < 0.001f)
+            direction = Vector2.right;
+        else
+            direction.Normalize();
+
+        float reach;
+
+        if (Application.isPlaying)
+        {
+            reach =
+                GetEffectiveAttackReach();
+        }
+        else
+        {
+            float editorPointDistance =
+                Vector2.Distance(
+                    aimOrigin.position,
+                    attackPoint.position
+                );
+
+            reach =
+                editorPointDistance +
+                attackRange;
+        }
+
+        Vector2 boxCenter =
+            originPosition +
+            direction *
+            (reach * 0.5f);
+
+        float boxAngle =
+            Mathf.Atan2(
+                direction.y,
+                direction.x
+            ) * Mathf.Rad2Deg;
+
+        Matrix4x4 previousMatrix =
+            Gizmos.matrix;
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+
+        Gizmos.matrix =
+            Matrix4x4.TRS(
+                boxCenter,
+                Quaternion.Euler(
+                    0f,
+                    0f,
+                    boxAngle
+                ),
+                Vector3.one
+            );
+
+        Gizmos.DrawWireCube(
+            Vector3.zero,
+            new Vector3(
+                reach,
+                attackRange * 2f,
+                0f
+            )
+        );
+
+        Gizmos.matrix =
+            previousMatrix;
     }
-    
+
     private IEnumerator PerformDash()
     {
         canDash = false;
@@ -569,7 +663,7 @@ public class PlayerController : NetworkBehaviour
 
         canDash = true;
     }
-    
+
     private void SpendDashStamina()
     {
         float effectiveDashCost =
@@ -642,7 +736,7 @@ public class PlayerController : NetworkBehaviour
             currentStamina,
             GetEffectiveMaxStamina()
         );
-    }   
+    }
 
     private void SyncStamina(bool forceSync)
     {
@@ -679,7 +773,7 @@ public class PlayerController : NetworkBehaviour
 
         UpdateStaminaBar();
     }
-    
+
     private void OnLoadoutChanged()
     {
         float newMaximum =
@@ -717,8 +811,17 @@ public class PlayerController : NetworkBehaviour
             newMaximum;
 
         UpdateStaminaBar();
+
+        Vector2 currentAimDirection =
+            IsOwner
+                ? aimDirection
+                : networkAimDirection.Value;
+
+        ApplyAimVisuals(
+            currentAimDirection
+        );
     }
-    
+
     public override void OnNetworkSpawn()
     {
         if (playerLoadout != null)
@@ -726,7 +829,7 @@ public class PlayerController : NetworkBehaviour
             playerLoadout.LoadoutChanged +=
                 OnLoadoutChanged;
         }
-        
+
         networkAimDirection.OnValueChanged +=
             OnAimDirectionChanged;
 
@@ -761,14 +864,14 @@ public class PlayerController : NetworkBehaviour
             playerLoadout.LoadoutChanged -=
                 OnLoadoutChanged;
         }
-        
+
         networkAimDirection.OnValueChanged -=
             OnAimDirectionChanged;
 
         networkStamina.OnValueChanged -=
             OnNetworkStaminaChanged;
     }
-    
+
     private IEnumerator MoveToSpawnPoint()
     {
         // NetworkTransform'un spawn işlemini tamamlamasını bekle.
@@ -795,6 +898,7 @@ public class PlayerController : NetworkBehaviour
             $"{spawnPosition} pozisyonunda oluşturuldu."
         );
     }
+
     public void ServerSetControlEnabled(bool controlEnabled)
     {
         if (!IsServer)
@@ -816,6 +920,7 @@ public class PlayerController : NetworkBehaviour
     {
         SetControlEnabled(controlEnabled);
     }
+
     private void OnAimDirectionChanged(
         Vector2 previousDirection,
         Vector2 newDirection)
@@ -825,6 +930,7 @@ public class PlayerController : NetworkBehaviour
             ApplyAimVisuals(newDirection);
         }
     }
+
     [Rpc(SendTo.Server)]
     private void RequestAttackRpc(Vector2 requestedAimDirection)
     {
@@ -836,7 +942,7 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsServer)
             return;
-        
+
         if (MatchManager.Instance == null)
             return;
 
@@ -856,7 +962,7 @@ public class PlayerController : NetworkBehaviour
         {
             return;
         }
-        
+
         // Server tarafında saldırı cooldown kontrolü.
         if (Time.time < nextServerAttackTime)
             return;
@@ -871,10 +977,28 @@ public class PlayerController : NetworkBehaviour
         if (attackDirection == Vector2.zero)
             return;
 
+        float effectiveAttackReach =
+            GetEffectiveAttackReach();
+
+// Hitbox oyuncudan başlayıp menzil
+// noktasına kadar uzanır.
         Vector2 attackCenter =
             (Vector2)aimOrigin.position +
-            attackDirection * attackPointDistance;
-        
+            attackDirection *
+            (effectiveAttackReach * 0.5f);
+
+        Vector2 attackSize =
+            new Vector2(
+                effectiveAttackReach,
+                attackRange * 2f
+            );
+
+        float attackAngle =
+            Mathf.Atan2(
+                attackDirection.y,
+                attackDirection.x
+            ) * Mathf.Rad2Deg;
+
         int effectiveAttackDamage =
             GetEffectiveAttackDamage();
 
@@ -895,11 +1019,12 @@ public class PlayerController : NetworkBehaviour
                     effectiveCriticalMultiplier
                 )
                 : effectiveAttackDamage;
-        
+
         Collider2D[] hitColliders =
-            Physics2D.OverlapCircleAll(
+            Physics2D.OverlapBoxAll(
                 attackCenter,
-                attackRange
+                attackSize,
+                attackAngle
             );
 
         if (isPreparationPhase)
@@ -941,7 +1066,7 @@ public class PlayerController : NetworkBehaviour
 
                 Vector2 hitPosition =
                     hit.ClosestPoint(attackCenter);
-                
+
                 fighter.TakeDamage(
                     resolvedDamage,
                     hitPosition,
@@ -969,7 +1094,7 @@ public class PlayerController : NetworkBehaviour
                         criticalKnockbackDuration
                     );
                 }
-                
+
                 continue;
             }
 
@@ -988,7 +1113,7 @@ public class PlayerController : NetworkBehaviour
             );
         }
     }
-    
+
     private void ResolvePreparationAttackOnServer(
         Collider2D[] hitColliders,
         Vector2 attackCenter)
@@ -1038,7 +1163,7 @@ public class PlayerController : NetworkBehaviour
             );
         }
     }
-    
+
     private void ApplyAimVisuals(Vector2 direction)
     {
         if (direction == Vector2.zero)
@@ -1049,9 +1174,13 @@ public class PlayerController : NetworkBehaviour
 
         if (attackPoint != null)
         {
+            float effectiveAttackReach =
+                GetEffectiveAttackReach();
+
             Vector2 attackPosition =
                 originPosition +
-                normalizedDirection * attackPointDistance;
+                normalizedDirection *
+                effectiveAttackReach;
 
             attackPoint.position = new Vector3(
                 attackPosition.x,
@@ -1069,6 +1198,7 @@ public class PlayerController : NetworkBehaviour
             spriteRenderer.flipX = true;
         }
     }
+
     public void ServerApplyKnockback(
         Vector2 direction,
         float distance,
@@ -1099,9 +1229,9 @@ public class PlayerController : NetworkBehaviour
         StopAllCoroutines();
 
         moveInput = Vector2.zero;
-        rb.linearVelocity = Vector2.zero;   
+        rb.linearVelocity = Vector2.zero;
         currentMoveVelocity = Vector2.zero;
-        
+
         isDashing = false;
         canDash = true;
 
@@ -1113,7 +1243,7 @@ public class PlayerController : NetworkBehaviour
             )
         );
     }
-    
+
     private void OnCollisionEnter2D(
         Collision2D collision)
     {
@@ -1147,7 +1277,7 @@ public class PlayerController : NetworkBehaviour
             )
         );
     }
-    
+
     [Rpc(SendTo.Server)]
     private void RequestBreakableCollisionRpc(
         NetworkObjectReference breakableReference)

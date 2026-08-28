@@ -138,6 +138,23 @@ public class ItemTooltipUI : MonoBehaviour
                 $"Attack Speed: " +
                 $"{attacksPerSecond:0.00}/s"
             );
+            
+            float reachDifferencePercent =
+            (
+                item.AttackReachMultiplier -
+                1f
+            ) * 100f;
+
+            string reachText =
+                Mathf.Abs(
+                    reachDifferencePercent
+                ) < 0.5f
+                    ? "Normal"
+                    : $"{reachDifferencePercent:+0;-0;0}%";
+
+            builder.AppendLine(
+                $"Range: {reachText}"
+            );
 
             builder.AppendLine(
                 $"Critical Chance: " +

@@ -1,22 +1,10 @@
 fileFormatVersion: 2
-guid: 3283d76e38f52bc46921ed24d4c1143f
+guid: 95abb6580d5b92c4bbe81e822e782a29
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -991856633171417929
-    second: Gemstones_0
-  - first:
-      213: -4570859758262461892
-    second: Gemstones_1
-  - first:
-      213: -3456156317398478145
-    second: Gemstones_2
-  - first:
-      213: 12212666392872374
-    second: Gemstones_3
-  - first:
-      213: -5191982557448148470
-    second: Gemstones_4
+      213: 7225967881579376391
+    second: Iicon_32_13_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -58,12 +46,12 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 32
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -125,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Item_VitalityRuby
+      name: Sword_OfGod
       rect:
         serializedVersion: 2
-        x: 5
-        y: 6
-        width: 19
-        height: 22
+        x: 0
+        y: 0
+        width: 32
+        height: 32
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,96 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 7b4e3bfa5a73c32f0800000000000000
-      internalID: -991856633171417929
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Item_StaminaCrystal
-      rect:
-        serializedVersion: 2
-        x: 29
-        y: 5
-        width: 19
-        height: 22
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: c3a53ae644b0190c0800000000000000
-      internalID: -4570859758262461892
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Gemstones_2
-      rect:
-        serializedVersion: 2
-        x: 53
-        y: 5
-        width: 19
-        height: 22
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: fb2dd3d04244900d0800000000000000
-      internalID: -3456156317398478145
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Gemstones_3
-      rect:
-        serializedVersion: 2
-        x: 76
-        y: 5
-        width: 19
-        height: 22
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 6b58b1afa536b2000800000000000000
-      internalID: 12212666392872374
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Item_MomentumCrystal
-      rect:
-        serializedVersion: 2
-        x: 101
-        y: 5
-        width: 19
-        height: 22
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: a0a674f4f5f52f7b0800000000000000
-      internalID: -5191982557448148470
+      spriteID: 70fabe3e08bc74460800000000000000
+      internalID: 7225967881579376391
       vertices: []
       indices: 
       edges: []
@@ -238,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: f1645f698f2798b4cb6708a5096d63ae
+    spriteID: 1b66111fa5bc4f44f9ae7e550ec0deb5
     internalID: 0
     vertices: []
     indices: 
@@ -248,11 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Gemstones_2: -3456156317398478145
-      Gemstones_3: 12212666392872374
-      Item_MomentumCrystal: -5191982557448148470
-      Item_StaminaCrystal: -4570859758262461892
-      Item_VitalityRuby: -991856633171417929
+      Sword_OfGod: 7225967881579376391
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

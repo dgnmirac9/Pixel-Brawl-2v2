@@ -6777,7 +6777,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 16, y: -148}
+  m_AnchoredPosition: {x: 16, y: -170}
   m_SizeDelta: {x: 268, y: 40}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &294809080
@@ -41263,7 +41263,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'JOIN CODE: -'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: eb4b06ad4f9df3d42a228cfeadddaaff, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
@@ -41385,7 +41385,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
   m_AnchoredPosition: {x: -10, y: 120}
-  m_SizeDelta: {x: 310, y: 190}
+  m_SizeDelta: {x: 310, y: 215}
   m_Pivot: {x: 1, y: 0}
 --- !u!114 &1708153552
 MonoBehaviour:
@@ -44492,11 +44492,11 @@ MonoBehaviour:
   preparationCratePrefab: {fileID: 194192040300269054, guid: eae40e3a9637f7e4a894c5542aa669ed,
     type: 3}
   itemCatalog: {fileID: 11400000, guid: df6d64d6bb390c54494d3316057e4f07, type: 2}
-  commonWeight: 20
-  uncommonWeight: 20
-  rareWeight: 20
-  epicWeight: 20
-  legendaryWeight: 20
+  commonWeight: 1
+  uncommonWeight: 1
+  rareWeight: 1
+  epicWeight: 1
+  legendaryWeight: 96
   room0SpawnPoints:
   - {fileID: 1127896620}
   - {fileID: 438467495}
@@ -44505,8 +44505,8 @@ MonoBehaviour:
   - {fileID: 30433933}
   - {fileID: 639497297}
   - {fileID: 1031383251}
-  weaponLoot: 010002000300040005000600
-  passiveLoot: 64006500660067006800
+  weaponLoot: 0100020003000400050006000700
+  passiveLoot: 640065006600670068006900
 --- !u!4 &1916600114
 Transform:
   m_ObjectHideFlags: 0

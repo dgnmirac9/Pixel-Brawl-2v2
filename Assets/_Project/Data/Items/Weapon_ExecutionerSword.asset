@@ -21,9 +21,13 @@ MonoBehaviour:
   worldVisualScale: 1
   attackDamage: 32
   attackCooldown: 0.62
+  attackReachMultiplier: 0.8
   criticalChance: 0.12
   criticalDamageMultiplier: 2
   damageReduction: 0
   moveSpeedMultiplier: 1
   maxHealthBonus: 0
+  maxStaminaBonus: 0
+  dashStaminaCostMultiplier: 1
+  dashCooldownMultiplier: 1
   staminaRegenerationMultiplier: 1

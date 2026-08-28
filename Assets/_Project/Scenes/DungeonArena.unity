@@ -44492,11 +44492,11 @@ MonoBehaviour:
   preparationCratePrefab: {fileID: 194192040300269054, guid: eae40e3a9637f7e4a894c5542aa669ed,
     type: 3}
   itemCatalog: {fileID: 11400000, guid: df6d64d6bb390c54494d3316057e4f07, type: 2}
-  commonWeight: 1
-  uncommonWeight: 1
-  rareWeight: 1
-  epicWeight: 1
-  legendaryWeight: 96
+  commonWeight: 30
+  uncommonWeight: 25
+  rareWeight: 20
+  epicWeight: 15
+  legendaryWeight: 10
   room0SpawnPoints:
   - {fileID: 1127896620}
   - {fileID: 438467495}

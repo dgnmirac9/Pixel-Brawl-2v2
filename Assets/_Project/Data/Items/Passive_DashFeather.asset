@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: 104
   displayName: Dash Feather
   description: A weightless charm that reduces the stamina consumed by dashing.
-  icon: {fileID: 0}
+  icon: {fileID: -41642693152946813, guid: 364088f7edcfc624c979f6c8139f5bd5, type: 3}
   itemType: 1
   rarity: 1
   worldVisualScale: 1

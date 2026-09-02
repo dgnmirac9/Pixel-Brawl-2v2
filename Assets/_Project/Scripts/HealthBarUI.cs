@@ -3,9 +3,19 @@ using UnityEngine.UI;
 
 public class HealthBarUI : MonoBehaviour
 {
-    [SerializeField] private Image fillImage; // HealthBar_Fill görseli
+    [Header("References")]
+    [SerializeField]
+    private Image fillImage;
 
-    // Can değerini 0.0 ile 1.0 arasında bir orana dönüştürüp barı günceller
+    [Header("Player Colors")]
+    [SerializeField]
+    private Color localPlayerColor =
+        new Color32(105, 169, 71, 255);
+
+    [SerializeField]
+    private Color opponentColor =
+        new Color32(216, 85, 78, 255);
+
     public void UpdateHealthBar(
         int currentHealth,
         int maxHealth)
@@ -14,12 +24,27 @@ public class HealthBarUI : MonoBehaviour
             return;
 
         if (maxHealth <= 0)
+        {
+            fillImage.fillAmount = 0f;
             return;
-
-        float healthRatio =
-            (float)currentHealth / maxHealth;
+        }
 
         fillImage.fillAmount =
-            Mathf.Clamp01(healthRatio);
+            Mathf.Clamp01(
+                (float)currentHealth /
+                maxHealth
+            );
+    }
+
+    public void SetPlayerRelationship(
+        bool isLocalPlayer)
+    {
+        if (fillImage == null)
+            return;
+
+        fillImage.color =
+            isLocalPlayer
+                ? localPlayerColor
+                : opponentColor;
     }
 }

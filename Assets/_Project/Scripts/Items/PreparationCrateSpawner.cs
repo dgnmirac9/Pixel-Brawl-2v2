@@ -283,8 +283,24 @@ public class PreparationCrateSpawner : MonoBehaviour
 
             networkObject.Spawn();
 
+            ItemId lootItemId =
+                lootPlan[index];
+
+            if (!itemCatalog.TryGetItem(
+                    lootItemId,
+                    out ItemDefinition itemDefinition))
+            {
+                Debug.LogError(
+                    $"ItemDefinition bulunamadı: {lootItemId}"
+                );
+
+                networkObject.Despawn(true);
+                continue;
+            }
+
             crate.ServerSetLoot(
-                lootPlan[index]
+                lootItemId,
+                itemDefinition.Rarity
             );
 
             spawnedCrates.Add(

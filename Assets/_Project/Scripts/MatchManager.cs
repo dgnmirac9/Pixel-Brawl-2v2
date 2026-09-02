@@ -639,6 +639,23 @@ public class MatchManager : NetworkBehaviour
 
             breakable.ResetOnServer();
         }
+
+        CrateDurability[] durabilityComponents =
+            FindObjectsByType<CrateDurability>(
+                FindObjectsSortMode.None
+            );
+
+        foreach (CrateDurability durability
+                 in durabilityComponents)
+        {
+            if (durability == null ||
+                !durability.IsSpawned)
+            {
+                continue;
+            }
+
+            durability.ResetDurabilityOnServer();
+        }
     }
     
     private void OnDestroy()

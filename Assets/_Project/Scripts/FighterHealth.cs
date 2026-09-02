@@ -96,6 +96,13 @@ public class FighterHealth : NetworkBehaviour
             currentHealth.Value = GetEffectiveMaxHealth();
             isAlive.Value = true;
         }
+        
+        if (healthBar != null)
+        {
+            healthBar.SetPlayerRelationship(
+                IsOwner
+            );
+        }
 
         UpdateHealthBar(currentHealth.Value);
         ApplyAliveState(isAlive.Value);

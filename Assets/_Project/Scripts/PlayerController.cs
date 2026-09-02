@@ -33,11 +33,17 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float dashCooldown = 0.8f;
     [SerializeField, Min(0.01f)] private float dashRecoveryDuration = 0.15f;
 
+    [Header("Attack Area Visual")] [SerializeField]
+    private AttackAreaVFX attackAreaVfxPrefab;
+
     [Header("Combat Settings")] [SerializeField]
     private Transform attackPoint; // Kılıç vuruş merkezinin noktası
 
     [SerializeField] private float attackRange = 0.5f; // Vuruş alanının yarıçapı
+
     [SerializeField] private int attackDamage = 20; // Vuruş Hasarı
+
+    [SerializeField, Min(0.1f)] private float maxAttackOriginDifference = 3f;
 
     [Header("Attack Rate Settings")] [SerializeField]
     private float attackCooldown = 0.4f;
@@ -54,6 +60,15 @@ public class PlayerController : NetworkBehaviour
 
     [SerializeField, Min(0.01f)] private float criticalKnockbackDuration = 0.18f;
 
+    [Header("Combat Crate Damage")] [SerializeField, Min(1)]
+    private int combatCrateAttackDamage = 1;
+
+    [SerializeField, Min(1)] private int combatCrateKnockbackDamage = 2;
+
+    [Header("Preparation Crate Damage")]
+    [SerializeField, Min(1)]
+    private int preparationCrateAttackDamage = 1;
+    
     // Referanslar
     private PlayerLoadout playerLoadout;
     private bool canControl = true;
@@ -495,7 +510,10 @@ public class PlayerController : NetworkBehaviour
 
         if (IsSpawned)
         {
-            RequestAttackRpc(aimDirection);
+            RequestAttackRpc(
+                (Vector2)aimOrigin.position,
+                aimDirection
+            );
         }
     }
 
@@ -932,12 +950,18 @@ public class PlayerController : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server)]
-    private void RequestAttackRpc(Vector2 requestedAimDirection)
+    private void RequestAttackRpc(
+        Vector2 requestedAttackOrigin,
+        Vector2 requestedAimDirection)
     {
-        ResolveAttackOnServer(requestedAimDirection);
+        ResolveAttackOnServer(
+            requestedAttackOrigin,
+            requestedAimDirection
+        );
     }
 
     private void ResolveAttackOnServer(
+        Vector2 requestedAttackOrigin,
         Vector2 requestedAimDirection)
     {
         if (!IsServer)
@@ -977,13 +1001,25 @@ public class PlayerController : NetworkBehaviour
         if (attackDirection == Vector2.zero)
             return;
 
+        Vector2 serverAttackOrigin =
+            aimOrigin.position;
+
+        Vector2 requestedOriginOffset =
+            requestedAttackOrigin -
+            serverAttackOrigin;
+
+        Vector2 validatedAttackOrigin =
+            serverAttackOrigin +
+            Vector2.ClampMagnitude(
+                requestedOriginOffset,
+                maxAttackOriginDifference
+            );
+
         float effectiveAttackReach =
             GetEffectiveAttackReach();
 
-// Hitbox oyuncudan başlayıp menzil
-// noktasına kadar uzanır.
         Vector2 attackCenter =
-            (Vector2)aimOrigin.position +
+            validatedAttackOrigin +
             attackDirection *
             (effectiveAttackReach * 0.5f);
 
@@ -998,6 +1034,13 @@ public class PlayerController : NetworkBehaviour
                 attackDirection.y,
                 attackDirection.x
             ) * Mathf.Rad2Deg;
+
+        PlayAttackAreaVfxRpc(
+            validatedAttackOrigin,
+            attackDirection,
+            effectiveAttackReach,
+            attackRange * 2f
+        );
 
         int effectiveAttackDamage =
             GetEffectiveAttackDamage();
@@ -1045,8 +1088,39 @@ public class PlayerController : NetworkBehaviour
         HashSet<EnemyHealth> damagedEnemies =
             new HashSet<EnemyHealth>();
 
+        HashSet<CrateDurability>
+            damagedCombatCrates = new();
+
         foreach (Collider2D hit in hitColliders)
         {
+            if (hit == null)
+                continue;
+
+            CrateDurability combatCrate =
+                hit.GetComponentInParent<
+                    CrateDurability>();
+
+            if (combatCrate != null)
+            {
+                if (!damagedCombatCrates.Add(
+                        combatCrate))
+                {
+                    continue;
+                }
+
+                Vector2 crateImpactPoint =
+                    hit.ClosestPoint(
+                        attackCenter
+                    );
+
+                combatCrate.DamageOnServer(
+                    combatCrateAttackDamage,
+                    crateImpactPoint
+                );
+
+                continue;
+            }
+
             FighterHealth fighter =
                 hit.GetComponentInParent<FighterHealth>();
 
@@ -1114,6 +1188,37 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    [Rpc(SendTo.Everyone)]
+    private void PlayAttackAreaVfxRpc(
+        Vector2 attackOrigin,
+        Vector2 attackDirection,
+        float attackReach,
+        float attackWidth)
+    {
+        if (attackAreaVfxPrefab == null)
+        {
+            Debug.LogWarning(
+                "PlayerController: " +
+                "AttackAreaVFX prefabı atanmamış.",
+                this
+            );
+
+            return;
+        }
+
+        AttackAreaVFX areaVfx =
+            Instantiate(
+                attackAreaVfxPrefab
+            );
+
+        areaVfx.Play(
+            attackOrigin,
+            attackDirection,
+            attackReach,
+            attackWidth
+        );
+    }
+
     private void ResolvePreparationAttackOnServer(
         Collider2D[] hitColliders,
         Vector2 attackCenter)
@@ -1124,8 +1229,8 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        HashSet<BreakableObject>
-            brokenObjects = new();
+        HashSet<CrateDurability>
+            damagedCrates = new();
 
         foreach (Collider2D hit
                  in hitColliders)
@@ -1140,17 +1245,23 @@ public class PlayerController : NetworkBehaviour
             if (preparationCrate == null)
                 continue;
 
-            BreakableObject breakable =
+            CrateDurability durability =
                 preparationCrate.GetComponent<
-                    BreakableObject>();
+                    CrateDurability>();
 
-            if (breakable == null ||
-                breakable.IsBroken)
+            if (durability == null)
             {
+                Debug.LogWarning(
+                    $"{preparationCrate.name}: " +
+                    "CombatCrateDurability bulunamadı."
+                );
+
                 continue;
             }
 
-            if (!brokenObjects.Add(breakable))
+            // Aynı kutunun birden fazla collider'ı varsa
+            // tek saldırıda yalnızca bir hasar alır.
+            if (!damagedCrates.Add(durability))
                 continue;
 
             Vector2 impactPoint =
@@ -1158,7 +1269,8 @@ public class PlayerController : NetworkBehaviour
                     attackCenter
                 );
 
-            breakable.BreakOnServer(
+            durability.DamageOnServer(
+                preparationCrateAttackDamage,
                 impactPoint
             );
         }
@@ -1326,11 +1438,23 @@ public class PlayerController : NetworkBehaviour
                 )
                 : breakable.transform.position;
 
-        breakable.BreakOnServer(
-            impactPoint
-        );
+        CrateDurability combatCrate =
+            breakable.GetComponent<
+                CrateDurability>();
 
-        // Aynı knockback yalnızca bir nesne kırsın.
+        if (combatCrate != null)
+        {
+            combatCrate.DamageOnServer(
+                combatCrateKnockbackDamage,
+                impactPoint
+            );
+        }
+        else
+        {
+            breakable.BreakOnServer(
+                impactPoint
+            );
+        }
         serverKnockbackValidUntil = 0f;
     }
 

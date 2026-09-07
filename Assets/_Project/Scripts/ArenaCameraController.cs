@@ -8,6 +8,13 @@ public class ArenaCameraController : MonoBehaviour
     [SerializeField]
     private Camera targetCamera;
 
+    [Header("Camera Sizes")]
+    [SerializeField, Min(0.1f)]
+    private float combatOrthographicSize = 7.3f;
+
+    [SerializeField, Min(0.1f)]
+    private float preparationOrthographicSize = 5.5f;
+    
     [Header("Camera Points")]
     [SerializeField]
     private Transform combatCameraPoint;
@@ -69,19 +76,23 @@ public class ArenaCameraController : MonoBehaviour
             return;
         }
 
-        Transform selectedPoint =
-            combatCameraPoint;
+        bool isPreparation =
+            matchManager.CurrentPhase ==
+            MatchPhase.Preparation;
 
-        if (matchManager.CurrentPhase ==
-            MatchPhase.Preparation)
-        {
-            selectedPoint =
-                GetLocalPreparationCameraPoint();
-        }
+        Transform selectedPoint =
+            isPreparation
+                ? GetLocalPreparationCameraPoint()
+                : combatCameraPoint;
 
         if (selectedPoint == null)
             return;
 
+        targetCamera.orthographicSize =
+            isPreparation
+                ? preparationOrthographicSize
+                : combatOrthographicSize;
+        
         Vector3 currentCameraPosition =
             targetCamera.transform.position;
 

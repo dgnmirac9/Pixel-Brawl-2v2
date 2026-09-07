@@ -510,9 +510,30 @@ public class PlayerController : NetworkBehaviour
 
         if (IsSpawned)
         {
+            Vector2 localAttackOrigin =
+                aimOrigin.position;
+
+            Vector2 localAttackDirection =
+                aimDirection.normalized;
+
+            float localAttackReach =
+                GetEffectiveAttackReach();
+
+            float localAttackWidth =
+                attackRange * 2f;
+
+            // Saldırıyı yapan client efekti anında görür.
+            PlayAttackAreaVfxLocal(
+                localAttackOrigin,
+                localAttackDirection,
+                localAttackReach,
+                localAttackWidth
+            );
+
+            // Gerçek hitbox ve hasar hâlâ sunucuda çözülür.
             RequestAttackRpc(
-                (Vector2)aimOrigin.position,
-                aimDirection
+                localAttackOrigin,
+                localAttackDirection
             );
         }
     }
@@ -1195,11 +1216,29 @@ public class PlayerController : NetworkBehaviour
         float attackReach,
         float attackWidth)
     {
+        // Dedicated server görsel üretmez.
+        // Saldırının sahibi VFX'i zaten anında oynattı.
+        if (!IsClient || IsOwner)
+            return;
+
+        PlayAttackAreaVfxLocal(
+            attackOrigin,
+            attackDirection,
+            attackReach,
+            attackWidth
+        );
+    }
+    
+    private void PlayAttackAreaVfxLocal(
+        Vector2 attackOrigin,
+        Vector2 attackDirection,
+        float attackReach,
+        float attackWidth)
+    {
         if (attackAreaVfxPrefab == null)
         {
             Debug.LogWarning(
-                "PlayerController: " +
-                "AttackAreaVFX prefabı atanmamış.",
+                "PlayerController: AttackAreaVFX prefabı atanmamış.",
                 this
             );
 
@@ -1207,9 +1246,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         AttackAreaVFX areaVfx =
-            Instantiate(
-                attackAreaVfxPrefab
-            );
+            Instantiate(attackAreaVfxPrefab);
 
         areaVfx.Play(
             attackOrigin,

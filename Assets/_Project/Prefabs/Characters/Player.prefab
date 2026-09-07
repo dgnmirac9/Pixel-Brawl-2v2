@@ -94,9 +94,9 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: -1869315837
-  m_SortingLayer: 1
-  m_SortingOrder: 2
+  m_SortingLayerID: 523861769
+  m_SortingLayer: 5
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: ae297123f091bbf4e8f1835eb98fb293, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -245,6 +245,7 @@ MonoBehaviour:
   criticalKnockbackDuration: 0.18
   combatCrateAttackDamage: 1
   combatCrateKnockbackDamage: 2
+  preparationCrateAttackDamage: 1
   aimOrigin: {fileID: 962001276400387307}
   breakableValidationDistance: 2.5
 --- !u!95 &191361030810674886
@@ -863,7 +864,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -914,7 +915,7 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
+  m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
@@ -1187,8 +1188,8 @@ Canvas:
   m_VertexColorAlwaysGammaSpace: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
-  m_SortingLayerID: -105541197
-  m_SortingOrder: 100
+  m_SortingLayerID: 1881901547
+  m_SortingOrder: 0
   m_TargetDisplay: 0
 --- !u!222 &5758306914469928653
 CanvasRenderer:
@@ -1211,6 +1212,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HealthBarUI
   fillImage: {fileID: 3113407143555831723}
+  localPlayerColor: {r: 0.4117647, g: 0.6627451, b: 0.2784314, a: 1}
+  opponentColor: {r: 0.84705883, g: 0.33333334, b: 0.30588236, a: 1}
 --- !u!1 &6816260805062906219
 GameObject:
   m_ObjectHideFlags: 0

@@ -18,7 +18,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: a5b953103ae420b489e43b67c965fa10, type: 3}
   itemType: 0
   rarity: 3
-  worldVisualScale: 1.25
+  worldVisualScale: 1.15
   attackDamage: 28
   attackCooldown: 0.55
   attackReachMultiplier: 0.9

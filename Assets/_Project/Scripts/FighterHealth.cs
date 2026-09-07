@@ -34,6 +34,7 @@ public class FighterHealth : NetworkBehaviour
     private Collider2D[] fighterColliders;
     private Color originalColor;
     private HitFeedback hitFeedback;
+    private Animator animator;
     
     public int MaxHealth => GetEffectiveMaxHealth();
     public int CurrentHealth => currentHealth.Value;
@@ -70,6 +71,7 @@ public class FighterHealth : NetworkBehaviour
     
     private void Awake()
     {
+        animator = GetComponent<Animator>();
         hitFeedback = GetComponent<HitFeedback>();
         playerController = GetComponent<PlayerController>();
         playerLoadout = GetComponent<PlayerLoadout>();
@@ -275,6 +277,11 @@ public class FighterHealth : NetworkBehaviour
 
     private void ApplyAliveState(bool alive)
     {
+        if (animator != null)
+        {
+            animator.SetBool("IsDead", !alive);
+        }
+        
         if (playerController != null)
         {
             playerController.SetControlEnabled(alive);

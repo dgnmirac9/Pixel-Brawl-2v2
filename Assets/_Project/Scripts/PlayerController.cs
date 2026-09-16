@@ -33,6 +33,23 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float dashCooldown = 0.8f;
     [SerializeField, Min(0.01f)] private float dashRecoveryDuration = 0.15f;
 
+    [Header("Block Settings")]
+    [SerializeField, Range(0f, 1f)]
+    private float blockMoveSpeedMultiplier = 0.45f;
+
+    [SerializeField, Range(1f, 360f)]
+    private float blockProtectionAngle = 120f;
+
+    [SerializeField, Min(0)]
+    private int successfulBlockGoldReward = 5;
+
+    [Header("Block Testing")]
+    [SerializeField]
+    private bool useToggleBlockInputForTesting;
+
+    [SerializeField]
+    private KeyCode blockToggleTestKey = KeyCode.B;
+
     [Header("Attack Area Visual")] [SerializeField]
     private AttackAreaVFX attackAreaVfxPrefab;
 
@@ -60,15 +77,9 @@ public class PlayerController : NetworkBehaviour
 
     [SerializeField, Min(0.01f)] private float criticalKnockbackDuration = 0.18f;
 
-    [Header("Combat Crate Damage")] [SerializeField, Min(1)]
-    private int combatCrateAttackDamage = 1;
-
-    [SerializeField, Min(1)] private int combatCrateKnockbackDamage = 2;
-
-    [Header("Preparation Crate Damage")]
-    [SerializeField, Min(1)]
+    [Header("Preparation Crate Damage")] [SerializeField, Min(1)]
     private int preparationCrateAttackDamage = 1;
-    
+
     // Referanslar
     private PlayerLoadout playerLoadout;
     private bool canControl = true;
@@ -80,12 +91,12 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Transform aimOrigin;
     private float attackPointDistance;
     private NetworkAnimator networkAnimator;
-
+    private PlayerMatchProgression
+        matchProgression;
+    private BlockFeedback blockFeedback;
+    
     // Durumlar
 
-    [SerializeField, Min(0.1f)] private float breakableValidationDistance = 2.5f;
-
-    private float serverKnockbackValidUntil;
     private Vector2 currentMoveVelocity;
     private Vector2 moveInput;
     private Vector2 lastMoveDirection = Vector2.right;
@@ -113,6 +124,18 @@ public class PlayerController : NetworkBehaviour
             NetworkVariableWritePermission.Owner
         );
 
+    private readonly NetworkVariable<bool>
+        networkIsBlocking = new(
+            false,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
+
+    private bool isBlocking;
+
+    public bool IsBlocking =>
+        networkIsBlocking.Value;
+
     private float nextServerAttackTime;
     private const float AimSyncThreshold = 0.0025f;
 
@@ -123,6 +146,10 @@ public class PlayerController : NetworkBehaviour
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         playerLoadout = GetComponent<PlayerLoadout>();
+        matchProgression =
+            GetComponent<PlayerMatchProgression>();
+        blockFeedback =
+            GetComponent<BlockFeedback>();
 
         mainCamera = Camera.main;
         if (aimOrigin == null)
@@ -194,15 +221,23 @@ public class PlayerController : NetworkBehaviour
 
     private float GetEffectiveDashCooldown()
     {
-        float multiplier =
+        float itemMultiplier =
             playerLoadout != null
                 ? playerLoadout
                     .TotalDashCooldownMultiplier
                 : 1f;
 
+        float progressionMultiplier =
+            matchProgression != null
+                ? matchProgression
+                    .DashCooldownMultiplier
+                : 1f;
+
         return Mathf.Max(
             0.05f,
-            dashCooldown * multiplier
+            dashCooldown *
+            itemMultiplier *
+            progressionMultiplier
         );
     }
 
@@ -234,12 +269,22 @@ public class PlayerController : NetworkBehaviour
         ItemDefinition weapon =
             GetEquippedWeapon();
 
-        return weapon != null
-            ? Mathf.Max(
-                0.05f,
-                weapon.AttackCooldown
-            )
-            : attackCooldown;
+        float baseCooldown =
+            weapon != null
+                ? weapon.AttackCooldown
+                : attackCooldown;
+
+        float progressionMultiplier =
+            matchProgression != null
+                ? matchProgression
+                    .AttackCooldownMultiplier
+                : 1f;
+
+        return Mathf.Max(
+            0.05f,
+            baseCooldown *
+            progressionMultiplier
+        );
     }
 
     private float GetEffectiveAttackReach()
@@ -272,25 +317,44 @@ public class PlayerController : NetworkBehaviour
         ItemDefinition weapon =
             GetEquippedWeapon();
 
-        return weapon != null
-            ? Mathf.Clamp01(
-                weapon.CriticalChance
-            )
-            : criticalChance;
+        float baseCriticalChance =
+            weapon != null
+                ? weapon.CriticalChance
+                : criticalChance;
+
+        float progressionBonus =
+            matchProgression != null
+                ? matchProgression
+                    .CriticalChanceBonus
+                : 0f;
+
+        return Mathf.Clamp01(
+            baseCriticalChance +
+            progressionBonus
+        );
     }
 
-    private float
-        GetEffectiveCriticalDamageMultiplier()
+    private float GetEffectiveCriticalDamageMultiplier()
     {
         ItemDefinition weapon =
             GetEquippedWeapon();
 
-        return weapon != null
-            ? Mathf.Max(
-                1f,
-                weapon.CriticalDamageMultiplier
-            )
-            : criticalDamageMultiplier;
+        float baseCriticalMultiplier =
+            weapon != null
+                ? weapon.CriticalDamageMultiplier
+                : criticalDamageMultiplier;
+
+        float progressionBonus =
+            matchProgression != null
+                ? matchProgression
+                    .CriticalDamageBonus
+                : 0f;
+
+        return Mathf.Max(
+            1f,
+            baseCriticalMultiplier +
+            progressionBonus
+        );
     }
 
     private void Update()
@@ -300,9 +364,22 @@ public class PlayerController : NetworkBehaviour
 
         UpdateStamina();
 
+        if (InGameMenuController.IsOpen)
+        {
+            SetBlocking(false);
+
+            moveInput = Vector2.zero;
+            currentMoveVelocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
+
+            UpdateAnimations();
+            return;
+        }
+
         if (!canControl ||
             isKnockedBack)
         {
+            SetBlocking(false);
             return;
         }
 
@@ -324,8 +401,12 @@ public class PlayerController : NetworkBehaviour
         // Sağa / Sola Dönüş (FlipX)
         HandleAiming();
 
+        // Block (SAĞ TIK BASILI TUT)
+        HandleBlockInput();
+
         //Saldırı (SOL TIK)
-        if (Input.GetMouseButtonDown(0) &&
+        if (!isBlocking &&
+            Input.GetMouseButtonDown(0) &&
             Time.time >= nextAttackTime)
         {
             PerformAttack();
@@ -336,7 +417,8 @@ public class PlayerController : NetworkBehaviour
         }
 
         // Dash (Space)
-        if (Input.GetKeyDown(KeyCode.Space) &&
+        if (!isBlocking &&
+            Input.GetKeyDown(KeyCode.Space) &&
             canDash &&
             currentStamina >=
             GetEffectiveDashStaminaCost())
@@ -353,14 +435,22 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner ||
             !canControl ||
+            InGameMenuController.IsOpen ||
             isDashing ||
             isKnockedBack)
         {
             return;
         }
 
+        float movementMultiplier =
+            isBlocking
+                ? blockMoveSpeedMultiplier
+                : 1f;
+
         Vector2 targetVelocity =
-            moveInput * GetEffectiveMoveSpeed();
+            moveInput *
+            GetEffectiveMoveSpeed() *
+            movementMultiplier;
 
         bool hasMovementInput =
             moveInput.sqrMagnitude > 0.001f;
@@ -396,7 +486,70 @@ public class PlayerController : NetworkBehaviour
         anim.SetBool("Grounded", true);
 
         // Hareket ediyorsa AnimState = 1 (Run), duruyorsa AnimState = 0 (Idle)
-        anim.SetInteger("AnimState", speed > 0.1f ? 1 : 0);
+        anim.SetInteger(
+            "AnimState",
+            !isBlocking && speed > 0.1f
+                ? 1
+                : 0
+        );
+    }
+
+    private void HandleBlockInput()
+    {
+        if (useToggleBlockInputForTesting)
+        {
+            if (Input.GetKeyDown(
+                    blockToggleTestKey))
+            {
+                SetBlocking(!isBlocking);
+            }
+
+            return;
+        }
+
+        bool wantsToBlock =
+            Input.GetMouseButton(1);
+
+        if (wantsToBlock == isBlocking)
+            return;
+
+        SetBlocking(wantsToBlock);
+    }
+
+    private void SetBlocking(bool shouldBlock)
+    {
+        if (isBlocking == shouldBlock)
+            return;
+
+        isBlocking = shouldBlock;
+        ApplyBlockAnimation(shouldBlock);
+
+        if (!IsOwner || !IsSpawned)
+            return;
+
+        if (IsServer)
+        {
+            networkIsBlocking.Value =
+                shouldBlock;
+        }
+        else
+        {
+            RequestBlockStateRpc(
+                shouldBlock
+            );
+        }
+    }
+
+    private void ApplyBlockAnimation(
+        bool shouldBlock)
+    {
+        if (anim == null)
+            return;
+
+        anim.SetBool(
+            "IsBlocking",
+            shouldBlock
+        );
     }
 
     private void HandleAiming()
@@ -444,6 +597,8 @@ public class PlayerController : NetworkBehaviour
 
         if (!controlEnabled)
         {
+            SetBlocking(false);
+
             StopAllCoroutines();
 
             moveInput = Vector2.zero;
@@ -875,8 +1030,18 @@ public class PlayerController : NetworkBehaviour
         networkStamina.OnValueChanged +=
             OnNetworkStaminaChanged;
 
+        networkIsBlocking.OnValueChanged +=
+            OnNetworkBlockingChanged;
+
         ApplyAimVisuals(
             networkAimDirection.Value
+        );
+
+        isBlocking =
+            networkIsBlocking.Value;
+
+        ApplyBlockAnimation(
+            isBlocking
         );
 
         if (IsOwner)
@@ -909,6 +1074,9 @@ public class PlayerController : NetworkBehaviour
 
         networkStamina.OnValueChanged -=
             OnNetworkStaminaChanged;
+
+        networkIsBlocking.OnValueChanged -=
+            OnNetworkBlockingChanged;
     }
 
     private IEnumerator MoveToSpawnPoint()
@@ -970,6 +1138,25 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    private void OnNetworkBlockingChanged(
+        bool previousState,
+        bool newState)
+    {
+        if (isBlocking == newState)
+            return;
+
+        isBlocking = newState;
+        ApplyBlockAnimation(newState);
+    }
+
+    [Rpc(SendTo.Server)]
+    private void RequestBlockStateRpc(
+        bool shouldBlock)
+    {
+        networkIsBlocking.Value =
+            shouldBlock;
+    }
+
     [Rpc(SendTo.Server)]
     private void RequestAttackRpc(
         Vector2 requestedAttackOrigin,
@@ -986,6 +1173,11 @@ public class PlayerController : NetworkBehaviour
         Vector2 requestedAimDirection)
     {
         if (!IsServer)
+            return;
+
+        // Block durumundayken istemciden saldırı isteği
+        // gelse bile sunucu bunu kabul etmez.
+        if (networkIsBlocking.Value)
             return;
 
         if (MatchManager.Instance == null)
@@ -1109,38 +1301,10 @@ public class PlayerController : NetworkBehaviour
         HashSet<EnemyHealth> damagedEnemies =
             new HashSet<EnemyHealth>();
 
-        HashSet<CrateDurability>
-            damagedCombatCrates = new();
-
         foreach (Collider2D hit in hitColliders)
         {
             if (hit == null)
                 continue;
-
-            CrateDurability combatCrate =
-                hit.GetComponentInParent<
-                    CrateDurability>();
-
-            if (combatCrate != null)
-            {
-                if (!damagedCombatCrates.Add(
-                        combatCrate))
-                {
-                    continue;
-                }
-
-                Vector2 crateImpactPoint =
-                    hit.ClosestPoint(
-                        attackCenter
-                    );
-
-                combatCrate.DamageOnServer(
-                    combatCrateAttackDamage,
-                    crateImpactPoint
-                );
-
-                continue;
-            }
 
             FighterHealth fighter =
                 hit.GetComponentInParent<FighterHealth>();
@@ -1162,17 +1326,50 @@ public class PlayerController : NetworkBehaviour
                 Vector2 hitPosition =
                     hit.ClosestPoint(attackCenter);
 
+                PlayerController targetController =
+                    fighter.GetComponent<
+                        PlayerController>();
+
+                if (targetController != null &&
+                    targetController
+                        .ServerTryBlockAttack(
+                            validatedAttackOrigin,
+                            attackDirection,
+                            hitPosition
+                        ))
+                {
+                    // Başarılı block hasarı, kritik
+                    // knockback'i ve saldırı Gold'unu engeller.
+                    continue;
+                }
+
+                int healthBeforeHit =
+                    fighter.CurrentHealth;
+
                 fighter.TakeDamage(
                     resolvedDamage,
                     hitPosition,
                     isCritical
                 );
 
+                int actualDamageDealt =
+                    Mathf.Max(
+                        0,
+                        healthBeforeHit -
+                        fighter.CurrentHealth
+                    );
+
+                if (actualDamageDealt > 0 &&
+                    matchProgression != null)
+                {
+                    matchProgression
+                        .ServerRegisterDamageDealt(
+                            actualDamageDealt
+                        );
+                }
+
                 if (isCritical && fighter.IsAlive)
                 {
-                    PlayerController targetController =
-                        fighter.GetComponent<PlayerController>();
-
                     Vector2 knockbackDirection =
                         (Vector2)fighter.transform.position -
                         (Vector2)transform.position;
@@ -1209,6 +1406,81 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    private bool ServerTryBlockAttack(
+        Vector2 attackerPosition,
+        Vector2 incomingAttackDirection,
+        Vector2 hitPosition)
+    {
+        if (!IsServer ||
+            !IsSpawned ||
+            !networkIsBlocking.Value)
+        {
+            return false;
+        }
+
+        if (MatchManager.Instance == null ||
+            !MatchManager.Instance.IsCombatActive)
+        {
+            return false;
+        }
+
+        Vector2 shieldDirection =
+            networkAimDirection.Value.normalized;
+
+        if (shieldDirection.sqrMagnitude < 0.001f)
+            return false;
+
+        Vector2 directionToAttacker =
+            attackerPosition -
+            (Vector2)transform.position;
+
+        // İki oyuncu neredeyse aynı noktadaysa saldırının
+        // ters yönünü saldırganın yönü olarak kullanırız.
+        if (directionToAttacker.sqrMagnitude < 0.001f)
+        {
+            directionToAttacker =
+                -incomingAttackDirection;
+        }
+
+        directionToAttacker.Normalize();
+
+        float minimumFacingDot =
+            Mathf.Cos(
+                blockProtectionAngle *
+                0.5f *
+                Mathf.Deg2Rad
+            );
+
+        float facingDot =
+            Vector2.Dot(
+                shieldDirection,
+                directionToAttacker
+            );
+
+        if (facingDot < minimumFacingDot)
+            return false;
+
+        if (successfulBlockGoldReward > 0)
+        {
+            matchProgression?.ServerAddGold(
+                successfulBlockGoldReward
+            );
+        }
+
+        blockFeedback?.PlayOnServer(
+            hitPosition
+        );
+
+        Debug.Log(
+            "[Block] Saldırı başarıyla engellendi. " +
+            $"Defender ClientId: {OwnerClientId} | " +
+            $"Gold: +{successfulBlockGoldReward} | " +
+            $"Açı: {blockProtectionAngle}"
+        );
+
+        return true;
+    }
+
     [Rpc(SendTo.Everyone)]
     private void PlayAttackAreaVfxRpc(
         Vector2 attackOrigin,
@@ -1228,7 +1500,7 @@ public class PlayerController : NetworkBehaviour
             attackWidth
         );
     }
-    
+
     private void PlayAttackAreaVfxLocal(
         Vector2 attackOrigin,
         Vector2 attackDirection,
@@ -1290,7 +1562,7 @@ public class PlayerController : NetworkBehaviour
             {
                 Debug.LogWarning(
                     $"{preparationCrate.name}: " +
-                    "CombatCrateDurability bulunamadı."
+                    "CrateDurability bulunamadı."
                 );
 
                 continue;
@@ -1359,9 +1631,6 @@ public class PlayerController : NetworkBehaviour
         if (direction == Vector2.zero)
             return;
 
-        serverKnockbackValidUntil =
-            Time.time + duration + 0.25f;
-
         ApplyKnockbackRpc(
             direction.normalized,
             Mathf.Max(0f, distance),
@@ -1375,6 +1644,8 @@ public class PlayerController : NetworkBehaviour
         float distance,
         float duration)
     {
+        SetBlocking(false);
+
         StopAllCoroutines();
 
         moveInput = Vector2.zero;
@@ -1391,108 +1662,6 @@ public class PlayerController : NetworkBehaviour
                 duration
             )
         );
-    }
-
-    private void OnCollisionEnter2D(
-        Collision2D collision)
-    {
-        if (!IsOwner ||
-            !IsSpawned ||
-            !isKnockedBack)
-        {
-            return;
-        }
-
-        BreakableObject breakable =
-            collision.collider
-                .GetComponentInParent<
-                    BreakableObject>();
-
-        if (breakable == null ||
-            breakable.IsBroken)
-        {
-            return;
-        }
-
-        NetworkObject breakableNetworkObject =
-            breakable.NetworkObject;
-
-        if (breakableNetworkObject == null)
-            return;
-
-        RequestBreakableCollisionRpc(
-            new NetworkObjectReference(
-                breakableNetworkObject
-            )
-        );
-    }
-
-    [Rpc(SendTo.Server)]
-    private void RequestBreakableCollisionRpc(
-        NetworkObjectReference breakableReference)
-    {
-        if (Time.time >
-            serverKnockbackValidUntil)
-        {
-            return;
-        }
-
-        if (!breakableReference.TryGet(
-                out NetworkObject breakableObject))
-        {
-            return;
-        }
-
-        BreakableObject breakable =
-            breakableObject.GetComponent<
-                BreakableObject>();
-
-        if (breakable == null ||
-            breakable.IsBroken)
-        {
-            return;
-        }
-
-        float distanceToBreakable =
-            Vector2.Distance(
-                transform.position,
-                breakable.transform.position
-            );
-
-        if (distanceToBreakable >
-            breakableValidationDistance)
-        {
-            return;
-        }
-
-        Collider2D breakableCollider =
-            breakable.GetComponent<Collider2D>();
-
-        Vector2 impactPoint =
-            breakableCollider != null
-                ? breakableCollider.ClosestPoint(
-                    transform.position
-                )
-                : breakable.transform.position;
-
-        CrateDurability combatCrate =
-            breakable.GetComponent<
-                CrateDurability>();
-
-        if (combatCrate != null)
-        {
-            combatCrate.DamageOnServer(
-                combatCrateKnockbackDamage,
-                impactPoint
-            );
-        }
-        else
-        {
-            breakable.BreakOnServer(
-                impactPoint
-            );
-        }
-        serverKnockbackValidUntil = 0f;
     }
 
     private IEnumerator PerformKnockback(

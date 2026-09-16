@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 4816551864235402458}
   - component: {fileID: -674589583868899676}
   - component: {fileID: -399278980200309509}
+  - component: {fileID: 1742177387762391315}
   - component: {fileID: -8034979978054430057}
   - component: {fileID: 5616529614960451991}
   - component: {fileID: 459177373837067210}
@@ -25,6 +26,8 @@ GameObject:
   - component: {fileID: 2648636014674702263}
   - component: {fileID: -3524821242534395695}
   - component: {fileID: -4166416846054218477}
+  - component: {fileID: 3841159128610300352}
+  - component: {fileID: 8318155119301683571}
   m_Layer: 20
   m_Name: Player
   m_TagString: Player
@@ -232,6 +235,11 @@ MonoBehaviour:
   dashDuration: 0.2
   dashCooldown: 0.8
   dashRecoveryDuration: 0.15
+  blockMoveSpeedMultiplier: 0.45
+  blockProtectionAngle: 120
+  successfulBlockGoldReward: 5
+  useToggleBlockInputForTesting: 0
+  blockToggleTestKey: 98
   attackAreaVfxPrefab: {fileID: 7672421395018548603, guid: d5d95d26c490f8b41aca28e70f681df0,
     type: 3}
   attackPoint: {fileID: 4165618851114007944}
@@ -243,11 +251,8 @@ MonoBehaviour:
   criticalDamageMultiplier: 1.5
   criticalKnockbackDistance: 1.8
   criticalKnockbackDuration: 0.18
-  combatCrateAttackDamage: 1
-  combatCrateKnockbackDamage: 2
   preparationCrateAttackDamage: 1
   aimOrigin: {fileID: 962001276400387307}
-  breakableValidationDistance: 2.5
 --- !u!95 &191361030810674886
 Animator:
   serializedVersion: 7
@@ -408,7 +413,28 @@ MonoBehaviour:
       NameHash: -1437120513
       Synchronize: 0
       ParameterType: 4
+    - name: IsDead
+      NameHash: 1270110494
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsBlocking
+      NameHash: -887301536
+      Synchronize: 1
+      ParameterType: 4
   AnimatorParametersExpanded: 0
+--- !u!114 &1742177387762391315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1021926522085015075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9de67814a81977345b42f207237ffd35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerRankIdentity
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!114 &-8034979978054430057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -461,7 +487,8 @@ AudioSource:
   m_GameObject: {fileID: 1021926522085015075}
   m_Enabled: 1
   serializedVersion: 4
-  OutputAudioMixerGroup: {fileID: 0}
+  OutputAudioMixerGroup: {fileID: 24300002, guid: c96724e1e114b9849a38599bec6b5504,
+    type: 2}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
@@ -609,6 +636,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LocalPlayerIndicator
   ShowTopMostFoldoutHeaderGroup: 1
   indicatorRoot: {fileID: 3826202130509812249}
+--- !u!114 &3841159128610300352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1021926522085015075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db243551a1603ce4090dc5a3d31a32e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMatchProgression
+  ShowTopMostFoldoutHeaderGroup: 1
+  maximumBonusHealth: 200
+  minimumAttackCooldownMultiplier: 0.45
+  minimumDashCooldownMultiplier: 0.45
+  maximumCriticalChanceBonus: 0.5
+  maximumCriticalDamageBonus: 2
+--- !u!114 &8318155119301683571
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1021926522085015075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cc26953d71f90c4eb606ea8eecf508f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlockFeedback
+  ShowTopMostFoldoutHeaderGroup: 1
+  successfulBlockClip: {fileID: 8300000, guid: bcf571bd1275d1b479588176c20a0380, type: 3}
+  successfulBlockVolume: 0.1
+  blockedTextPrefab: {fileID: 4154650297673547827, guid: 68aad72450f14054591c38523ef6e926,
+    type: 3}
+  blockedTextOffset: {x: 0, y: 0.85}
+  blockedTextLifetime: 0.8
+  blockedTextColor: {r: 0.6431373, g: 0.8666667, b: 1, a: 1}
 --- !u!1 &1812284966174629527
 GameObject:
   m_ObjectHideFlags: 0

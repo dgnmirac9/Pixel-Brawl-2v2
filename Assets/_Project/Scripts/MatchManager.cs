@@ -7,26 +7,40 @@ using UnityEngine;
 public class MatchManager : NetworkBehaviour
 {
     public static MatchManager Instance { get; private set; }
-    
-    [Header("Preparation Settings")]
-    [SerializeField, Min(1)]
+
+    [Header("Preparation Settings")] [SerializeField, Min(1)]
     private int preparationDurationSeconds = 10;
-    
-    [Header("Countdown Settings")]
-    [SerializeField, Min(1)]
+
+    [Header("Countdown Settings")] [SerializeField, Min(1)]
     private int initialCountdownSeconds = 3;
 
-    [SerializeField, Min(1)]
-    private int roundCountdownSeconds = 2;
+    [SerializeField, Min(1)] private int roundCountdownSeconds = 2;
 
-    [SerializeField, Min(0f)]
-    private float roundEndPauseDuration = 1f;
+    [SerializeField, Min(0f)] private float roundEndPauseDuration = 1f;
 
-    [Header("Match Settings")]
-    [SerializeField, Min(1)] private int roundsToWin = 3;
-    
-    [Header("Round Settings")]
-    [SerializeField] private float roundRestartDelay = 2f;
+    [Header("Match Settings")] [SerializeField, Min(1)]
+    private int roundsToWin = 3;
+
+    [Header("Round Gold Rewards")] [SerializeField, Min(0)]
+    private int roundBaseGold = 50;
+
+    [SerializeField, Min(0)] private int roundWinnerBonusGold = 25;
+
+    [SerializeField, Min(0)] private int roundLoserComebackGold = 40;
+
+    [Header("Prototype Rank Settings")] [SerializeField]
+    private bool awardRankForPrototypeMatches = true;
+
+    private bool localRankResultProcessed;
+
+    private bool hasCachedLocalRankResult;
+    private bool cachedLocalPlayerWon;
+    private int cachedPreviousRating;
+    private int cachedNewRating;
+    private int cachedRatingChange;
+
+    [Header("Round Settings")] [SerializeField]
+    private float roundRestartDelay = 2f;
 
     private readonly List<FighterHealth> fighters = new();
     private bool roundEnding;
@@ -37,20 +51,21 @@ public class MatchManager : NetworkBehaviour
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
         );
+
     private readonly NetworkVariable<int>
         preparationTimeRemaining = new(
             0,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
         );
-    
+
     private readonly NetworkVariable<MatchPhase>
         currentPhase = new(
             MatchPhase.Lobby,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
         );
-    
+
     private readonly NetworkVariable<bool> matchEnded = new(
         false,
         NetworkVariableReadPermission.Everyone,
@@ -62,6 +77,7 @@ public class MatchManager : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+
     private readonly NetworkVariable<int> team0Score = new(
         0,
         NetworkVariableReadPermission.Everyone,
@@ -79,18 +95,39 @@ public class MatchManager : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
-    
+
+    private readonly NetworkVariable<bool>
+        matchEndedByForfeit = new(
+            false,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
 
     public event Action MatchStateChanged;
+
+    public event Action<
+        bool,
+        int,
+        int,
+        int
+    > LocalRankResultProcessed;
+
     public MatchPhase CurrentPhase =>
         currentPhase.Value;
+
     public int CountdownValue =>
         countdownValue.Value;
+
+    public bool MatchEndedByForfeit =>
+        matchEndedByForfeit.Value;
+
     public int PreparationTimeRemaining =>
         preparationTimeRemaining.Value;
+
     public bool IsCombatActive =>
         currentPhase.Value ==
         MatchPhase.Combat;
+
     public int Team0Score => team0Score.Value;
     public int Team1Score => team1Score.Value;
     public int RoundNumber => roundNumber.Value;
@@ -98,7 +135,7 @@ public class MatchManager : NetworkBehaviour
     public int RoundsToWin => roundsToWin;
     public bool MatchEnded => matchEnded.Value;
     public int WinningTeamId => winningTeamId.Value;
-    
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -110,7 +147,7 @@ public class MatchManager : NetworkBehaviour
 
         Instance = this;
     }
-    
+
     private void OnIntegerMatchStateChanged(
         int previousValue,
         int newValue)
@@ -129,7 +166,7 @@ public class MatchManager : NetworkBehaviour
     {
         MatchStateChanged?.Invoke();
     }
-    
+
     public override void OnNetworkSpawn()
     {
         countdownValue.OnValueChanged +=
@@ -143,11 +180,13 @@ public class MatchManager : NetworkBehaviour
         roundNumber.OnValueChanged += OnIntegerMatchStateChanged;
         winningTeamId.OnValueChanged += OnIntegerMatchStateChanged;
         matchEnded.OnValueChanged += OnBooleanMatchStateChanged;
+        matchEndedByForfeit.OnValueChanged +=
+            OnBooleanMatchStateChanged;
 
         // Client, OnNetworkSpawn çalıştığında güncel NetworkVariable
         // değerlerini zaten almış olur.
         NotifyMatchStateChanged();
-        
+
         if (!IsServer)
             return;
 
@@ -168,7 +207,7 @@ public class MatchManager : NetworkBehaviour
             $"Maç başladı. İlk {roundsToWin} round'u alan kazanır."
         );
     }
-    
+
     public override void OnNetworkDespawn()
     {
         countdownValue.OnValueChanged -=
@@ -182,12 +221,16 @@ public class MatchManager : NetworkBehaviour
         roundNumber.OnValueChanged -= OnIntegerMatchStateChanged;
         winningTeamId.OnValueChanged -= OnIntegerMatchStateChanged;
         matchEnded.OnValueChanged -= OnBooleanMatchStateChanged;
-        
+        matchEndedByForfeit.OnValueChanged -=
+            OnBooleanMatchStateChanged;
+
         StopAllCoroutines();
         fighters.Clear();
         roundEnding = false;
+        localRankResultProcessed = false;
+        ClearLocalRankResultCache();
     }
-    
+
     public void ServerResetForNewSession()
     {
         if (!IsServer || !IsSpawned)
@@ -214,13 +257,13 @@ public class MatchManager : NetworkBehaviour
         roundNumber.Value = 1;
 
         matchEnded.Value = false;
+        matchEndedByForfeit.Value = false;
         winningTeamId.Value = -1;
         roundEnding = false;
 
-        fighters.RemoveAll(
-            fighter =>
-                fighter == null ||
-                !fighter.IsSpawned
+        fighters.RemoveAll(fighter =>
+            fighter == null ||
+            !fighter.IsSpawned
         );
 
         NotifyMatchStateChanged();
@@ -229,7 +272,7 @@ public class MatchManager : NetworkBehaviour
             "[MatchManager] Yeni oturum durumu sıfırlandı."
         );
     }
-    
+
     public bool ServerBeginMatch()
     {
         if (!IsServer)
@@ -256,6 +299,7 @@ public class MatchManager : NetworkBehaviour
 
         return true;
     }
+
     private IEnumerator RunPreparationSequence()
     {
         if (!IsServer)
@@ -309,6 +353,7 @@ public class MatchManager : NetworkBehaviour
             initialCountdownSeconds
         );
     }
+
     private IEnumerator RunCountdown(
         int countdownSeconds)
     {
@@ -342,13 +387,13 @@ public class MatchManager : NetworkBehaviour
             $"Round {roundNumber.Value} başladı."
         );
     }
+
     private void PrepareFightersForPreparation()
     {
         if (!IsServer)
             return;
 
-        fighters.RemoveAll(
-            fighter => fighter == null
+        fighters.RemoveAll(fighter => fighter == null
         );
 
         foreach (FighterHealth fighter
@@ -363,6 +408,15 @@ public class MatchManager : NetworkBehaviour
             if (loadout != null)
             {
                 loadout.ServerClearLoadout();
+            }
+
+            PlayerMatchProgression progression =
+                fighter.GetComponent<
+                    PlayerMatchProgression>();
+
+            if (progression != null)
+            {
+                progression.ServerResetForMatch();
             }
 
             fighter.ResetFighter();
@@ -404,13 +458,13 @@ public class MatchManager : NetworkBehaviour
             );
         }
     }
+
     private void PrepareFightersForRound()
     {
         if (!IsServer)
             return;
 
-        fighters.RemoveAll(
-            fighter => fighter == null
+        fighters.RemoveAll(fighter => fighter == null
         );
 
         foreach (FighterHealth fighter
@@ -449,7 +503,7 @@ public class MatchManager : NetworkBehaviour
             );
         }
     }
-    
+
     public void RegisterFighter(FighterHealth fighter)
     {
         if (!IsServer || fighter == null)
@@ -457,7 +511,7 @@ public class MatchManager : NetworkBehaviour
 
         if (!fighters.Contains(fighter))
             fighters.Add(fighter);
-        
+
         PlayerController controller =
             fighter.GetComponent<PlayerController>();
 
@@ -480,6 +534,55 @@ public class MatchManager : NetworkBehaviour
             return;
 
         fighters.Remove(fighter);
+    }
+
+    private void FinishMatchOnServer(
+        int winnerTeamId,
+        bool wasForfeit)
+    {
+        if (!IsServer)
+            return;
+
+        if (matchEnded.Value)
+            return;
+
+        // Preparation, countdown veya round restart
+        // coroutine'lerinin devam etmesini engeller.
+        StopAllCoroutines();
+        
+        if (RoundShopManager.Instance != null)
+        {
+            RoundShopManager.Instance
+                .ServerCancelShop();
+        }
+
+        roundEnding = true;
+
+        countdownValue.Value = 0;
+        preparationTimeRemaining.Value = 0;
+
+        SetAllFighterControls(false);
+
+        winningTeamId.Value = winnerTeamId;
+        matchEndedByForfeit.Value = wasForfeit;
+        matchEnded.Value = true;
+
+        currentPhase.Value =
+            MatchPhase.MatchEnded;
+
+        NotifyMatchStateChanged();
+
+        ProcessRankResultClientRpc(
+            winnerTeamId
+        );
+
+        Debug.Log(
+            "[MatchManager] Maç tamamlandı. " +
+            $"Kazanan takım: {winnerTeamId} | " +
+            $"Forfeit: {wasForfeit} | " +
+            $"Skor: {team0Score.Value} - " +
+            $"{team1Score.Value}"
+        );
     }
 
     public void NotifyFighterDefeated(
@@ -515,7 +618,7 @@ public class MatchManager : NetworkBehaviour
         }
 
         roundEnding = true;
-        
+
         currentPhase.Value =
             MatchPhase.RoundEnding;
 
@@ -535,22 +638,17 @@ public class MatchManager : NetworkBehaviour
         // Kazanan takım gerekli round sayısına ulaştı mı?
         if (winnerScore >= roundsToWin)
         {
-            winningTeamId.Value = winnerId;
-            matchEnded.Value = true;
-            currentPhase.Value =
-                MatchPhase.MatchEnded;
-            
-            NotifyMatchStateChanged();
-            
-            Debug.Log(
-                $"MAÇ BİTTİ! Kazanan Takım: {winnerId} | " +
-                $"Final Skoru: " +
-                $"{team0Score.Value} - {team1Score.Value}"
+            FinishMatchOnServer(
+                winnerId,
+                false
             );
 
-            // Maç bittiği için RestartRound başlatmıyoruz.
             return;
         }
+
+        AwardRoundGoldOnServer(
+            winnerId
+        );
 
         Debug.Log(
             $"Round {roundNumber.Value} bitti. " +
@@ -560,14 +658,373 @@ public class MatchManager : NetworkBehaviour
 
         StartCoroutine(RestartRound());
     }
-    
+
+    private void AwardRoundGoldOnServer(
+        int winnerTeamId)
+    {
+        if (!IsServer)
+            return;
+
+        fighters.RemoveAll(fighter =>
+            fighter == null ||
+            !fighter.IsSpawned
+        );
+
+        foreach (FighterHealth fighter
+                 in fighters)
+        {
+            PlayerMatchProgression progression =
+                fighter.GetComponent<
+                    PlayerMatchProgression>();
+
+            if (progression == null)
+            {
+                Debug.LogError(
+                    "[MatchGold] Oyuncuda " +
+                    "PlayerMatchProgression bulunamadı. " +
+                    $"ClientId: {fighter.OwnerClientId}"
+                );
+
+                continue;
+            }
+
+            bool playerWonRound =
+                fighter.TeamId ==
+                winnerTeamId;
+
+            int resultBonus =
+                playerWonRound
+                    ? roundWinnerBonusGold
+                    : roundLoserComebackGold;
+
+            int totalReward =
+                roundBaseGold +
+                resultBonus;
+
+            progression.ServerAddGold(
+                totalReward
+            );
+
+            Debug.Log(
+                "[MatchGold] Round ödemesi yapıldı. " +
+                $"ClientId: {fighter.OwnerClientId} | " +
+                $"TeamId: {fighter.TeamId} | " +
+                $"Round kazandı: {playerWonRound} | " +
+                $"Temel ödeme: {roundBaseGold} | " +
+                $"Sonuç bonusu: {resultBonus} | " +
+                $"Toplam ödeme: {totalReward}"
+            );
+        }
+    }
+
+    public bool TryGetCachedLocalRankResult(
+        out bool localPlayerWon,
+        out int previousRating,
+        out int newRating,
+        out int ratingChange)
+    {
+        localPlayerWon =
+            cachedLocalPlayerWon;
+
+        previousRating =
+            cachedPreviousRating;
+
+        newRating =
+            cachedNewRating;
+
+        ratingChange =
+            cachedRatingChange;
+
+        return hasCachedLocalRankResult;
+    }
+
+    public bool RequestLocalForfeit()
+    {
+        if (!IsSpawned)
+        {
+            Debug.LogWarning(
+                "[Forfeit] MatchManager henüz spawn olmadı."
+            );
+
+            return false;
+        }
+
+        if (matchEnded.Value ||
+            currentPhase.Value == MatchPhase.Lobby)
+        {
+            Debug.LogWarning(
+                "[Forfeit] Aktif bir maç bulunmuyor."
+            );
+
+            return false;
+        }
+
+        RequestForfeitServerRpc();
+
+        return true;
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestForfeitServerRpc(
+        ServerRpcParams serverRpcParams = default)
+    {
+        if (matchEnded.Value ||
+            currentPhase.Value == MatchPhase.Lobby)
+        {
+            return;
+        }
+
+        ulong forfeitingClientId =
+            serverRpcParams.Receive.SenderClientId;
+
+        FighterHealth forfeitingFighter =
+            FindFighterByClientId(
+                forfeitingClientId
+            );
+
+        if (forfeitingFighter == null)
+        {
+            Debug.LogWarning(
+                "[Forfeit] İsteği gönderen oyuncunun " +
+                "FighterHealth component'i bulunamadı. " +
+                $"ClientId: {forfeitingClientId}"
+            );
+
+            return;
+        }
+
+        int forfeitingTeamId =
+            forfeitingFighter.TeamId;
+
+        if (forfeitingTeamId != 0 &&
+            forfeitingTeamId != 1)
+        {
+            Debug.LogWarning(
+                "[Forfeit] Geçersiz takım kimliği. " +
+                $"ClientId: {forfeitingClientId} | " +
+                $"TeamId: {forfeitingTeamId}"
+            );
+
+            return;
+        }
+
+        int winnerTeamId =
+            forfeitingTeamId == 0
+                ? 1
+                : 0;
+
+        // Sonuç panelinde hükmen kazanılan maçın
+        // tamamlanmış görünmesini sağlar.
+        if (winnerTeamId == 0)
+        {
+            team0Score.Value =
+                roundsToWin;
+        }
+        else
+        {
+            team1Score.Value =
+                roundsToWin;
+        }
+
+        Debug.Log(
+            "[Forfeit] Oyuncu maçtan ayrıldı. " +
+            $"ClientId: {forfeitingClientId} | " +
+            $"Kaybeden takım: {forfeitingTeamId} | " +
+            $"Kazanan takım: {winnerTeamId}"
+        );
+
+        FinishMatchOnServer(
+            winnerTeamId,
+            true
+        );
+    }
+
+    private FighterHealth FindFighterByClientId(
+        ulong clientId)
+    {
+        fighters.RemoveAll(fighter =>
+            fighter == null ||
+            !fighter.IsSpawned
+        );
+
+        foreach (FighterHealth fighter in fighters)
+        {
+            if (fighter.OwnerClientId == clientId)
+            {
+                return fighter;
+            }
+        }
+
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton
+                .ConnectedClients
+                .TryGetValue(
+                    clientId,
+                    out NetworkClient networkClient
+                ))
+        {
+            NetworkObject playerObject =
+                networkClient.PlayerObject;
+
+            if (playerObject != null)
+            {
+                FighterHealth fighter =
+                    playerObject
+                        .GetComponent<FighterHealth>();
+
+                if (fighter == null)
+                {
+                    fighter =
+                        playerObject
+                            .GetComponentInChildren<
+                                FighterHealth>();
+                }
+
+                return fighter;
+            }
+        }
+
+        return null;
+    }
+
     private void OnMatchPhaseChanged(
         MatchPhase previousPhase,
         MatchPhase newPhase)
     {
+        if (newPhase == MatchPhase.Preparation)
+        {
+            localRankResultProcessed = false;
+            ClearLocalRankResultCache();
+        }
+
         NotifyMatchStateChanged();
     }
-    
+
+    [ClientRpc]
+    private void ProcessRankResultClientRpc(
+        int winnerTeamId)
+    {
+        if (!awardRankForPrototypeMatches)
+            return;
+
+        if (localRankResultProcessed)
+            return;
+
+        if (RankService.Instance == null)
+        {
+            Debug.LogWarning(
+                "[Rank] RankService bulunamadı. " +
+                "Maç sonucu işlenemedi."
+            );
+
+            return;
+        }
+
+        if (NetworkManager.Singleton == null ||
+            NetworkManager.Singleton.LocalClient ==
+            null)
+        {
+            Debug.LogWarning(
+                "[Rank] LocalClient bulunamadı."
+            );
+
+            return;
+        }
+
+        NetworkObject localPlayerObject =
+            NetworkManager.Singleton
+                .LocalClient
+                .PlayerObject;
+
+        if (localPlayerObject == null)
+        {
+            Debug.LogWarning(
+                "[Rank] Yerel PlayerObject bulunamadı."
+            );
+
+            return;
+        }
+
+        FighterHealth localFighter =
+            localPlayerObject
+                .GetComponent<FighterHealth>();
+
+        if (localFighter == null)
+        {
+            localFighter =
+                localPlayerObject
+                    .GetComponentInChildren<FighterHealth>();
+        }
+
+        if (localFighter == null)
+        {
+            Debug.LogWarning(
+                "[Rank] Yerel oyuncuda " +
+                "FighterHealth bulunamadı."
+            );
+
+            return;
+        }
+
+        localRankResultProcessed = true;
+
+        bool localPlayerWon =
+            localFighter.TeamId ==
+            winnerTeamId;
+
+        int oldRating =
+            RankService.Instance.Profile.rating;
+
+        // Geçici prototip:
+        // Rakibi oyuncuyla eşit rating kabul ediyoruz.
+        int opponentRating =
+            GetOpponentTeamAverageRating(
+                localFighter.TeamId,
+                oldRating
+            );
+
+        int ratingChange =
+            RankService.Instance.ApplyMatchResult(
+                opponentRating,
+                localPlayerWon
+            );
+
+        int newRating =
+            RankService.Instance.Profile.rating;
+
+        hasCachedLocalRankResult = true;
+        cachedLocalPlayerWon = localPlayerWon;
+        cachedPreviousRating = oldRating;
+        cachedNewRating = newRating;
+        cachedRatingChange = ratingChange;
+
+        LocalRankResultProcessed?.Invoke(
+            localPlayerWon,
+            oldRating,
+            newRating,
+            ratingChange
+        );
+
+        Debug.Log(
+            $"[Rank] Yerel maç sonucu işlendi. " +
+            $"TeamId: {localFighter.TeamId} | " +
+            $"WinnerTeamId: {winnerTeamId} | " +
+            $"Kazandı: {localPlayerWon} | " +
+            $"Rakip Rating: {opponentRating} | " +
+            $"Rating: {oldRating} -> {newRating} | " +
+            $"Değişim: {ratingChange}"
+        );
+    }
+
+    private void ClearLocalRankResultCache()
+    {
+        hasCachedLocalRankResult = false;
+        cachedLocalPlayerWon = false;
+        cachedPreviousRating = 0;
+        cachedNewRating = 0;
+        cachedRatingChange = 0;
+    }
+
     private bool IsTeamEliminated(int teamId)
     {
         bool teamMemberFound = false;
@@ -592,7 +1049,32 @@ public class MatchManager : NetworkBehaviour
             roundEndPauseDuration
         );
 
-        ResetBreakableObjects();
+        if (RoundShopManager.Instance != null &&
+            RoundShopManager.Instance.IsSpawned)
+        {
+            currentPhase.Value =
+                MatchPhase.Shop;
+
+            SetAllFighterControls(false);
+
+            RoundShopManager.Instance
+                .ServerBeginShop(
+                    roundNumber.Value
+                );
+
+            while (RoundShopManager.Instance != null &&
+                   RoundShopManager.Instance.IsShopRunning)
+            {
+                yield return null;
+            }
+        }
+        else
+        {
+            Debug.LogError(
+                "[MatchManager] RoundShopManager " +
+                "bulunamadı veya spawn olmadı."
+            );
+        }
 
         roundNumber.Value++;
 
@@ -617,47 +1099,77 @@ public class MatchManager : NetworkBehaviour
                 controller.ServerSetControlEnabled(controlEnabled);
         }
     }
-    
-    private void ResetBreakableObjects()
+
+    private int GetOpponentTeamAverageRating(
+        int localTeamId,
+        int fallbackRating)
     {
-        if (!IsServer)
-            return;
-
-        BreakableObject[] breakableObjects =
-            FindObjectsByType<BreakableObject>(
+        PlayerRankIdentity[] rankIdentities =
+            FindObjectsByType<PlayerRankIdentity>(
                 FindObjectsSortMode.None
             );
 
-        foreach (BreakableObject breakable
-                 in breakableObjects)
+        int totalOpponentRating = 0;
+        int opponentCount = 0;
+
+        foreach (PlayerRankIdentity identity
+                 in rankIdentities)
         {
-            if (breakable == null ||
-                !breakable.IsSpawned)
+            if (identity == null ||
+                !identity.IsSpawned ||
+                !identity.HasSubmittedRating)
             {
                 continue;
             }
 
-            breakable.ResetOnServer();
-        }
+            FighterHealth fighter =
+                identity.GetComponent<FighterHealth>();
 
-        CrateDurability[] durabilityComponents =
-            FindObjectsByType<CrateDurability>(
-                FindObjectsSortMode.None
-            );
-
-        foreach (CrateDurability durability
-                 in durabilityComponents)
-        {
-            if (durability == null ||
-                !durability.IsSpawned)
+            if (fighter == null)
             {
-                continue;
+                fighter =
+                    identity.GetComponentInChildren<
+                        FighterHealth>();
             }
 
-            durability.ResetDurabilityOnServer();
+            if (fighter == null)
+                continue;
+
+            if (fighter.TeamId == localTeamId)
+                continue;
+
+            totalOpponentRating +=
+                identity.Rating;
+
+            opponentCount++;
         }
+
+        if (opponentCount == 0)
+        {
+            Debug.LogWarning(
+                "[Rank] Rakip rating bulunamadı. " +
+                $"Geçici değer kullanılacak: " +
+                $"{fallbackRating}"
+            );
+
+            return fallbackRating;
+        }
+
+        int averageRating =
+            Mathf.RoundToInt(
+                totalOpponentRating /
+                (float)opponentCount
+            );
+
+        Debug.Log(
+            "[Rank] Rakip takım rating ortalaması: " +
+            $"{averageRating} | " +
+            $"Rakip sayısı: {opponentCount}"
+        );
+
+        return averageRating;
     }
-    
+
     private void OnDestroy()
     {
         if (Instance == this)

@@ -1,4 +1,7 @@
 {
-  "PlayerTags": [],
+  "PlayerTags": [
+    "UGS_Main",
+    "UGS_Client1"
+  ],
   "version": "6000.3.21f1"
 }

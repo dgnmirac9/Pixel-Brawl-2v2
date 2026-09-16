@@ -28,7 +28,7 @@ public class RelayManager : MonoBehaviour
         }
 
         Instance = this;
-        StatusMessage = "Relay hazır değil.";
+        StatusMessage = "ROOM SERVICE IS NOT READY";
     }
 
     public async Task<string> StartHostWithRelayAsync()
@@ -43,7 +43,7 @@ public class RelayManager : MonoBehaviour
             return null;
 
         IsBusy = true;
-        SetStatus("Relay allocation oluşturuluyor...");
+        SetStatus("CREATING ROOM...");
 
         try
         {
@@ -63,7 +63,7 @@ public class RelayManager : MonoBehaviour
 
             if (transport == null)
             {
-                SetStatus("UnityTransport bulunamadı.");
+                SetStatus("CONNECTION SERVICE IS UNAVAILABLE");
                 Debug.LogError("[Relay] UnityTransport bulunamadı.");
                 return null;
             }
@@ -79,12 +79,12 @@ public class RelayManager : MonoBehaviour
             if (!hostStarted)
             {
                 CurrentJoinCode = null;
-                SetStatus("Netcode Host başlatılamadı.");
+                SetStatus("ROOM COULD NOT BE CREATED");
                 return null;
             }
 
             SetStatus(
-                $"Host başladı. Join Code: {CurrentJoinCode}"
+                $"ROOM CREATED - CODE: {CurrentJoinCode}"
             );
 
             Debug.Log(
@@ -97,7 +97,7 @@ public class RelayManager : MonoBehaviour
         catch (Exception exception)
         {
             CurrentJoinCode = null;
-            SetStatus($"Relay Host hatası: {exception.Message}");
+            SetStatus("ROOM COULD NOT BE CREATED");
 
             Debug.LogError("[Relay] Host başlatılamadı.");
             Debug.LogException(exception);
@@ -121,7 +121,7 @@ public class RelayManager : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(joinCode))
         {
-            SetStatus("Join code boş olamaz.");
+            SetStatus("ENTER A ROOM CODE");
             return false;
         }
 
@@ -132,7 +132,7 @@ public class RelayManager : MonoBehaviour
             return false;
 
         IsBusy = true;
-        SetStatus("Relay allocation'a katılınıyor...");
+        SetStatus("JOINING ROOM...");
 
         try
         {
@@ -147,7 +147,7 @@ public class RelayManager : MonoBehaviour
 
             if (transport == null)
             {
-                SetStatus("UnityTransport bulunamadı.");
+                SetStatus("CONNECTION SERVICE IS UNAVAILABLE");
                 Debug.LogError("[Relay] UnityTransport bulunamadı.");
                 return false;
             }
@@ -162,13 +162,13 @@ public class RelayManager : MonoBehaviour
 
             if (!clientStarted)
             {
-                SetStatus("Netcode Client başlatılamadı.");
+                SetStatus("COULD NOT JOIN THE ROOM");
                 return false;
             }
             
             CurrentJoinCode = joinCode;
 
-            SetStatus("Client bağlantısı başlatıldı.");
+            SetStatus("CONNECTING TO ROOM...");
 
             Debug.Log(
                 $"[Relay] Client bağlanıyor. Join Code: {joinCode}"
@@ -178,7 +178,7 @@ public class RelayManager : MonoBehaviour
         }
         catch (Exception exception)
         {
-            SetStatus($"Relay Client hatası: {exception.Message}");
+            SetStatus("COULD NOT JOIN THE ROOM");
 
             Debug.LogError("[Relay] Client başlatılamadı.");
             Debug.LogException(exception);
@@ -196,7 +196,7 @@ public class RelayManager : MonoBehaviour
     {
         if (UnityServicesInitializer.Instance == null)
         {
-            SetStatus("UnityServicesInitializer bulunamadı.");
+            SetStatus("ONLINE SERVICES ARE UNAVAILABLE");
             Debug.LogError(
                 "[Relay] UnityServicesInitializer bulunamadı."
             );
@@ -210,7 +210,7 @@ public class RelayManager : MonoBehaviour
 
         if (!servicesReady)
         {
-            SetStatus("Unity Services hazır değil.");
+            SetStatus("ONLINE SERVICES ARE UNAVAILABLE");
             return false;
         }
 
@@ -221,13 +221,13 @@ public class RelayManager : MonoBehaviour
     {
         if (NetworkManager.Singleton == null)
         {
-            SetStatus("NetworkManager bulunamadı.");
+            SetStatus("CONNECTION SERVICE IS UNAVAILABLE");
             return false;
         }
 
         if (NetworkManager.Singleton.IsListening)
         {
-            SetStatus("Network zaten çalışıyor.");
+            SetStatus("YOU ARE ALREADY IN A ROOM");
             return false;
         }
 
@@ -239,7 +239,7 @@ public class RelayManager : MonoBehaviour
         CurrentJoinCode = null;
         IsBusy = false;
 
-        SetStatus("Relay hazır.");
+        SetStatus("ROOM SERVICE READY");
     }
 
     private void SetStatus(string message)

@@ -35,6 +35,8 @@ public class FighterHealth : NetworkBehaviour
     private Color originalColor;
     private HitFeedback hitFeedback;
     private Animator animator;
+    private PlayerMatchProgression
+        matchProgression;
     
     public int MaxHealth => GetEffectiveMaxHealth();
     public int CurrentHealth => currentHealth.Value;
@@ -75,6 +77,7 @@ public class FighterHealth : NetworkBehaviour
         hitFeedback = GetComponent<HitFeedback>();
         playerController = GetComponent<PlayerController>();
         playerLoadout = GetComponent<PlayerLoadout>();
+        matchProgression = GetComponent<PlayerMatchProgression>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         fighterColliders = GetComponentsInChildren<Collider2D>(true);
 
@@ -90,6 +93,13 @@ public class FighterHealth : NetworkBehaviour
         {
             playerLoadout.LoadoutChanged += OnLoadoutChanged;
         }
+        
+        if (matchProgression != null)
+        {
+            matchProgression.ProgressionChanged +=
+                OnProgressionChanged;
+        }
+        
         currentHealth.OnValueChanged += OnHealthChanged;
         isAlive.OnValueChanged += OnAliveChanged;
 
@@ -131,9 +141,16 @@ public class FighterHealth : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        
         currentHealth.OnValueChanged -= OnHealthChanged;
         isAlive.OnValueChanged -= OnAliveChanged;
-
+       
+        if (matchProgression != null)
+        {
+            matchProgression.ProgressionChanged -=
+                OnProgressionChanged;
+        }
+        
         if (IsServer && MatchManager.Instance != null)
         {
             MatchManager.Instance.UnregisterFighter(this);
@@ -306,16 +323,29 @@ public class FighterHealth : NetworkBehaviour
     
     private int GetEffectiveMaxHealth()
     {
-        int bonusHealth =
+        int itemBonusHealth =
             playerLoadout != null
                 ? playerLoadout
                     .TotalMaxHealthBonus
                 : 0;
 
+        int progressionBonusHealth =
+            matchProgression != null
+                ? matchProgression
+                    .BonusMaxHealth
+                : 0;
+
         return Mathf.Max(
             1,
-            maxHealth + bonusHealth
+            maxHealth +
+            itemBonusHealth +
+            progressionBonusHealth
         );
+    }
+    
+    private void OnProgressionChanged()
+    {
+        OnLoadoutChanged();
     }
 
     private void OnLoadoutChanged()

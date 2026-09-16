@@ -1,50 +1,58 @@
 using System.Collections;
 using TMPro;
+using Unity.Netcode;
 using UnityEngine;
 
 public class MatchUI : MonoBehaviour
 {
-    [Header("Preparation")]
-    [SerializeField]
+    [Header("Preparation")] [SerializeField]
     private GameObject preparationPanel;
 
-    [SerializeField]
-    private TMP_Text preparationTitleText;
+    [SerializeField] private TMP_Text preparationTimerText;
 
-    [SerializeField]
-    private TMP_Text preparationCountdownText;
+    [Header("Countdown")] [SerializeField] private GameObject countdownPanel;
 
-    [Header("Countdown")]
-    [SerializeField]
-    private GameObject countdownPanel;
+    [SerializeField] private TMP_Text countdownText;
 
-    [SerializeField]
-    private TMP_Text countdownText;
+    [Header("Score UI")] [SerializeField] private TMP_Text team0ScoreText;
 
-    [Header("Score UI")]
-    [SerializeField]
-    private TMP_Text team0ScoreText;
+    [SerializeField] private TMP_Text roundText;
 
-    [SerializeField]
-    private TMP_Text roundText;
+    [SerializeField] private TMP_Text team1ScoreText;
 
-    [SerializeField]
-    private TMP_Text team1ScoreText;
+    [Header("Match End Transition")] [SerializeField]
+    private CanvasGroup matchEndFadeCanvasGroup;
 
-    [Header("Match Result")]
-    [SerializeField]
+    [SerializeField, Min(0f)] private float resultReadDuration = 3f;
+
+    [SerializeField, Min(0f)] private float returningTextDuration = 0.8f;
+
+    [SerializeField, Min(0.01f)] private float matchEndFadeDuration = 0.6f;
+
+    [Header("Match Result")] [SerializeField]
     private GameObject resultPanel;
 
-    [SerializeField]
-    private TMP_Text resultText;
+    [SerializeField] private TMP_Text resultText;
+
+    [SerializeField] private TMP_Text finalScoreText;
+
+    [SerializeField] private TMP_Text ratingChangeText;
+
+    [SerializeField] private TMP_Text ratingProgressText;
+
+    [SerializeField] private TMP_Text rankStatusText;
+
+    [SerializeField] private TMP_Text returnStatusText;
 
     private MatchManager matchManager;
-    private Coroutine initializeRoutine;
+    private bool rankResultReady;
+    private Coroutine matchEndVisualRoutine;
 
     private void OnEnable()
     {
-        initializeRoutine =
-            StartCoroutine(InitializeMatchUI());
+        StartCoroutine(
+            InitializeMatchUI()
+        );
     }
 
     private IEnumerator InitializeMatchUI()
@@ -55,15 +63,40 @@ public class MatchUI : MonoBehaviour
             yield return null;
         }
 
-        matchManager = MatchManager.Instance;
+        matchManager =
+            MatchManager.Instance;
 
-        // Tekrarlı aboneliği önler.
-        matchManager.MatchStateChanged -= RefreshUI;
-        matchManager.MatchStateChanged += RefreshUI;
+        matchManager.MatchStateChanged -=
+            RefreshUI;
+
+        matchManager.MatchStateChanged +=
+            RefreshUI;
+
+        matchManager.LocalRankResultProcessed -=
+            HandleLocalRankResultProcessed;
+
+        matchManager.LocalRankResultProcessed +=
+            HandleLocalRankResultProcessed;
+
+        rankResultReady = false;
 
         RefreshUI();
 
-        initializeRoutine = null;
+        if (!rankResultReady &&
+            matchManager.TryGetCachedLocalRankResult(
+                out bool localPlayerWon,
+                out int previousRating,
+                out int newRating,
+                out int ratingChange
+            ))
+        {
+            HandleLocalRankResultProcessed(
+                localPlayerWon,
+                previousRating,
+                newRating,
+                ratingChange
+            );
+        }
     }
 
     private void RefreshUI()
@@ -72,47 +105,9 @@ public class MatchUI : MonoBehaviour
             return;
 
         RefreshScoreUI();
-        RefreshResultUI();
         RefreshPreparationUI();
-        RefreshCombatCountdownUI();
-    }
-
-    private void RefreshScoreUI()
-    {
-        if (team0ScoreText != null)
-        {
-            team0ScoreText.text =
-                matchManager.Team0Score.ToString();
-        }
-
-        if (team1ScoreText != null)
-        {
-            team1ScoreText.text =
-                matchManager.Team1Score.ToString();
-        }
-
-        if (roundText != null)
-        {
-            roundText.text =
-                $"ROUND {matchManager.RoundNumber}";
-        }
-    }
-
-    private void RefreshResultUI()
-    {
-        if (resultPanel != null)
-        {
-            resultPanel.SetActive(
-                matchManager.MatchEnded
-            );
-        }
-
-        if (resultText != null &&
-            matchManager.MatchEnded)
-        {
-            resultText.text =
-                $"TEAM {matchManager.WinningTeamId + 1} WINS!";
-        }
+        RefreshCountdownUI();
+        RefreshResultUI();
     }
 
     private void RefreshPreparationUI()
@@ -128,24 +123,40 @@ public class MatchUI : MonoBehaviour
             );
         }
 
-        if (!showPreparation)
-            return;
-
-        if (preparationTitleText != null)
+        if (preparationTimerText != null &&
+            showPreparation)
         {
-            preparationTitleText.text =
-                "PREPARATION";
-        }
-
-        if (preparationCountdownText != null)
-        {
-            preparationCountdownText.text =
+            preparationTimerText.text =
                 matchManager.PreparationTimeRemaining
                     .ToString();
         }
     }
 
-    private void RefreshCombatCountdownUI()
+    private void RefreshScoreUI()
+    {
+        if (team0ScoreText != null)
+        {
+            team0ScoreText.text =
+                matchManager.Team0Score
+                    .ToString();
+        }
+
+        if (team1ScoreText != null)
+        {
+            team1ScoreText.text =
+                matchManager.Team1Score
+                    .ToString();
+        }
+
+        if (roundText != null)
+        {
+            roundText.text =
+                $"ROUND " +
+                $"{matchManager.RoundNumber}";
+        }
+    }
+
+    private void RefreshCountdownUI()
     {
         bool showCountdown =
             matchManager.CurrentPhase ==
@@ -169,18 +180,491 @@ public class MatchUI : MonoBehaviour
         }
     }
 
-    private void OnDisable()
+    private void RefreshResultUI()
     {
-        if (initializeRoutine != null)
+        bool isNewSession =
+            matchManager.CurrentPhase ==
+            MatchPhase.Lobby ||
+            matchManager.CurrentPhase ==
+            MatchPhase.Preparation;
+
+        if (isNewSession)
         {
-            StopCoroutine(initializeRoutine);
-            initializeRoutine = null;
+            rankResultReady = false;
+
+            ClearRankResultUI();
+            ResetMatchEndVisuals();
         }
 
-        if (matchManager != null)
+        bool showResult =
+            matchManager.MatchEnded;
+
+        if (resultPanel != null)
         {
-            matchManager.MatchStateChanged -=
-                RefreshUI;
+            resultPanel.SetActive(
+                showResult
+            );
         }
+
+        if (!showResult)
+            return;
+
+        RefreshMatchResultHeadline();
+
+        if (finalScoreText != null)
+        {
+            finalScoreText.text =
+                $"{matchManager.Team0Score}" +
+                " - " +
+                $"{matchManager.Team1Score}";
+        }
+
+        if (!rankResultReady)
+        {
+            ShowWaitingForRankResult();
+        }
+    }
+
+    private void HandleLocalRankResultProcessed(
+        bool localPlayerWon,
+        int previousRating,
+        int newRating,
+        int ratingChange)
+    {
+        rankResultReady = true;
+
+        if (resultPanel != null)
+            resultPanel.SetActive(true);
+
+        ApplyResultHeadline(
+            localPlayerWon
+        );
+
+        RefreshRankResult(
+            previousRating,
+            newRating,
+            ratingChange
+        );
+
+        if (finalScoreText != null &&
+            matchManager != null)
+        {
+            finalScoreText.text =
+                $"{matchManager.Team0Score}" +
+                " - " +
+                $"{matchManager.Team1Score}";
+        }
+
+        if (matchEndVisualRoutine == null)
+        {
+            matchEndVisualRoutine =
+                StartCoroutine(
+                    RunMatchEndVisualSequence()
+                );
+        }
+    }
+
+    private IEnumerator RunMatchEndVisualSequence()
+    {
+        if (returnStatusText != null)
+        {
+            returnStatusText.gameObject
+                .SetActive(false);
+        }
+
+        if (matchEndFadeCanvasGroup != null)
+        {
+            matchEndFadeCanvasGroup.alpha = 0f;
+
+            matchEndFadeCanvasGroup
+                .blocksRaycasts = false;
+
+            matchEndFadeCanvasGroup
+                .interactable = false;
+        }
+
+        // Oyuncunun sonucu ve RP değişimini
+        // okuyabilmesi için bekler.
+        yield return new WaitForSecondsRealtime(
+            resultReadDuration
+        );
+
+        if (returnStatusText != null)
+        {
+            returnStatusText.text =
+                "RETURNING TO MENU...";
+
+            returnStatusText.gameObject
+                .SetActive(true);
+        }
+
+        yield return new WaitForSecondsRealtime(
+            returningTextDuration
+        );
+
+        if (matchEndFadeCanvasGroup != null)
+        {
+            matchEndFadeCanvasGroup
+                .blocksRaycasts = true;
+
+            float elapsed = 0f;
+
+            while (elapsed < matchEndFadeDuration)
+            {
+                elapsed +=
+                    Time.unscaledDeltaTime;
+
+                float progress =
+                    Mathf.Clamp01(
+                        elapsed /
+                        matchEndFadeDuration
+                    );
+
+                matchEndFadeCanvasGroup.alpha =
+                    Mathf.Lerp(
+                        0f,
+                        1f,
+                        progress
+                    );
+
+                yield return null;
+            }
+
+            matchEndFadeCanvasGroup.alpha = 1f;
+        }
+
+        // Client'ların da fade işlemini bitirmesi için
+        // kısa bir güvenlik aralığı.
+        yield return new WaitForSecondsRealtime(
+            0.2f
+        );
+
+        bool localInstanceIsHost =
+            NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsHost;
+
+        if (localInstanceIsHost)
+        {
+            if (ConnectionUI.Instance != null)
+            {
+                ConnectionUI.Instance
+                    .ReturnToMainMenuAfterMatch();
+            }
+            else
+            {
+                Debug.LogError(
+                    "[MatchUI] ConnectionUI bulunamadı. " +
+                    "Ana menüye dönülemedi."
+                );
+            }
+        }
+
+        matchEndVisualRoutine = null;
+    }
+
+    private void ResetMatchEndVisuals()
+    {
+        if (matchEndVisualRoutine != null)
+        {
+            StopCoroutine(
+                matchEndVisualRoutine
+            );
+
+            matchEndVisualRoutine = null;
+        }
+
+        if (returnStatusText != null)
+        {
+            returnStatusText.gameObject
+                .SetActive(false);
+        }
+
+        if (matchEndFadeCanvasGroup != null)
+        {
+            matchEndFadeCanvasGroup.alpha = 0f;
+
+            matchEndFadeCanvasGroup
+                .blocksRaycasts = false;
+
+            matchEndFadeCanvasGroup
+                .interactable = false;
+        }
+    }
+
+    private void RefreshMatchResultHeadline()
+    {
+        if (!TryGetLocalPlayerWon(
+                out bool localPlayerWon))
+        {
+            if (resultText != null)
+            {
+                resultText.text =
+                    $"TEAM " +
+                    $"{matchManager.WinningTeamId + 1} " +
+                    "WINS!";
+
+                resultText.color =
+                    Color.white;
+            }
+
+            return;
+        }
+
+        ApplyResultHeadline(
+            localPlayerWon
+        );
+    }
+
+    private void ApplyResultHeadline(
+        bool localPlayerWon)
+    {
+        if (resultText == null)
+            return;
+
+        bool wasForfeit =
+            matchManager != null &&
+            matchManager.MatchEndedByForfeit;
+
+        if (localPlayerWon)
+        {
+            resultText.text =
+                wasForfeit
+                    ? "VICTORY\nOPPONENT LEFT"
+                    : "VICTORY";
+
+            resultText.color =
+                new Color32(
+                    232,
+                    199,
+                    102,
+                    255
+                );
+        }
+        else
+        {
+            resultText.text =
+                wasForfeit
+                    ? "DEFEAT\nFORFEIT"
+                    : "DEFEAT";
+
+            resultText.color =
+                new Color32(
+                    229,
+                    107,
+                    93,
+                    255
+                );
+        }
+    }
+
+    private void RefreshRankResult(
+        int previousRating,
+        int newRating,
+        int ratingChange)
+    {
+        RankTier previousTier =
+            RankCalculator.GetTier(
+                previousRating
+            );
+
+        RankTier currentTier =
+            RankCalculator.GetTier(
+                newRating
+            );
+
+        if (ratingChangeText != null)
+        {
+            string prefix =
+                ratingChange > 0
+                    ? "+"
+                    : string.Empty;
+
+            ratingChangeText.text =
+                $"{prefix}{ratingChange} RP";
+
+            ratingChangeText.color =
+                ratingChange >= 0
+                    ? new Color32(
+                        143,
+                        209,
+                        106,
+                        255
+                    )
+                    : new Color32(
+                        229,
+                        107,
+                        93,
+                        255
+                    );
+        }
+
+        if (ratingProgressText != null)
+        {
+            ratingProgressText.text =
+                $"{previousRating} RP  >  " +
+                $"{newRating} RP";
+        }
+
+        if (rankStatusText == null)
+            return;
+
+        if (currentTier > previousTier)
+        {
+            rankStatusText.text =
+                "PROMOTED TO " +
+                currentTier
+                    .ToString()
+                    .ToUpperInvariant();
+
+            rankStatusText.color =
+                new Color32(
+                    232,
+                    199,
+                    102,
+                    255
+                );
+        }
+        else if (currentTier < previousTier)
+        {
+            rankStatusText.text =
+                "DEMOTED TO " +
+                currentTier
+                    .ToString()
+                    .ToUpperInvariant();
+
+            rankStatusText.color =
+                new Color32(
+                    229,
+                    107,
+                    93,
+                    255
+                );
+        }
+        else
+        {
+            rankStatusText.text =
+                "RANK: " +
+                currentTier
+                    .ToString()
+                    .ToUpperInvariant();
+
+            rankStatusText.color =
+                new Color32(
+                    255,
+                    244,
+                    214,
+                    255
+                );
+        }
+    }
+
+    private bool TryGetLocalPlayerWon(
+        out bool localPlayerWon)
+    {
+        localPlayerWon = false;
+
+        if (NetworkManager.Singleton == null ||
+            NetworkManager.Singleton.LocalClient ==
+            null)
+        {
+            return false;
+        }
+
+        NetworkObject localPlayerObject =
+            NetworkManager.Singleton
+                .LocalClient
+                .PlayerObject;
+
+        if (localPlayerObject == null)
+            return false;
+
+        FighterHealth localFighter =
+            localPlayerObject
+                .GetComponent<FighterHealth>();
+
+        if (localFighter == null)
+        {
+            localFighter =
+                localPlayerObject
+                    .GetComponentInChildren<
+                        FighterHealth>();
+        }
+
+        if (localFighter == null)
+            return false;
+
+        localPlayerWon =
+            localFighter.TeamId ==
+            matchManager.WinningTeamId;
+
+        return true;
+    }
+
+    private void ShowWaitingForRankResult()
+    {
+        if (ratingChangeText != null)
+        {
+            ratingChangeText.text =
+                "CALCULATING RP...";
+
+            ratingChangeText.color =
+                new Color32(
+                    255,
+                    244,
+                    214,
+                    255
+                );
+        }
+
+        if (ratingProgressText != null)
+        {
+            ratingProgressText.text =
+                string.Empty;
+        }
+
+        if (rankStatusText != null)
+        {
+            rankStatusText.text =
+                string.Empty;
+        }
+
+        if (returnStatusText != null)
+        {
+            returnStatusText.gameObject
+                .SetActive(false);
+        }
+    }
+
+    private void ClearRankResultUI()
+    {
+        if (ratingChangeText != null)
+            ratingChangeText.text = string.Empty;
+
+        if (ratingProgressText != null)
+            ratingProgressText.text = string.Empty;
+
+        if (rankStatusText != null)
+            rankStatusText.text = string.Empty;
+
+        if (returnStatusText != null)
+        {
+            returnStatusText.gameObject
+                .SetActive(false);
+        }
+    }
+
+    private void OnDisable()
+    {
+        ResetMatchEndVisuals();
+        StopAllCoroutines();
+
+        if (matchManager == null)
+            return;
+
+        matchManager.MatchStateChanged -=
+            RefreshUI;
+
+        matchManager.LocalRankResultProcessed -=
+            HandleLocalRankResultProcessed;
     }
 }

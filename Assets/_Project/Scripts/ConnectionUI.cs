@@ -6,17 +6,35 @@ using System.Collections;
 
 public class ConnectionUI : MonoBehaviour
 {
+    public static ConnectionUI Instance
+    {
+        get;
+        private set;
+    }
+    
     [Header("Panels")] [SerializeField] private GameObject preGameRoot;
+    [SerializeField] private GameObject mainMenuPanel;
     [SerializeField] private GameObject connectionView;
     [SerializeField] private GameObject waitingRoomPanel;
+    [SerializeField] private GameObject settingsPanel;
     [SerializeField] private GameObject matchCanvas;
+
+    [Header("Main Menu Controls")] [SerializeField]
+    private Button playButton;
+
+    [SerializeField] private Button settingsButton;
+    [SerializeField] private Button quitButton;
+    [SerializeField] private Button connectionBackButton;
+    [SerializeField] private Button settingsBackButton;
+
+    [Header("Waiting Room Controls")]
+    [SerializeField] private Button waitingRoomBackButton;
 
     [Header("Connection Controls")] [SerializeField]
     private Button hostButton;
 
     [SerializeField] private TMP_InputField joinCodeInput;
     [SerializeField] private Button joinButton;
-    [SerializeField] private Button disconnectButton;
     [SerializeField] private Button copyCodeButton;
     [SerializeField] private TMP_Text copyButtonText;
 
@@ -37,6 +55,18 @@ public class ConnectionUI : MonoBehaviour
     private RelayManager relayManager;
     private NetworkManager networkManager;
 
+    private void Awake()
+    {
+        if (Instance != null &&
+            Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+    }
+    
     private async void Start()
     {
         if (copyButtonText != null)
@@ -45,30 +75,69 @@ public class ConnectionUI : MonoBehaviour
                 copyButtonText.text;
         }
 
-        ShowConnectionMenu();
+        ShowMainMenu();
 
         relayManager = RelayManager.Instance;
         networkManager = NetworkManager.Singleton;
 
         if (relayManager == null)
         {
-            SetStatus("RELAY MANAGER NOT FOUND");
+            SetStatus("CONNECTION SERVICE IS UNAVAILABLE");
             Debug.LogError("ConnectionUI: RelayManager bulunamadı.");
             return;
         }
 
         if (networkManager == null)
         {
-            SetStatus("NETWORK MANAGER NOT FOUND");
+            SetStatus("CONNECTION SERVICE IS UNAVAILABLE");
             Debug.LogError("ConnectionUI: NetworkManager bulunamadı.");
             return;
         }
 
+        if (playButton != null)
+        {
+            playButton.onClick.AddListener(
+                ShowConnectionMenu
+            );
+        }
+
+        if (settingsButton != null)
+        {
+            settingsButton.onClick.AddListener(
+                ShowSettingsMenu
+            );
+        }
+
+        if (quitButton != null)
+        {
+            quitButton.onClick.AddListener(
+                HandleQuitClicked
+            );
+        }
+
+        if (connectionBackButton != null)
+        {
+            connectionBackButton.onClick.AddListener(
+                HandleConnectionBackClicked
+            );
+        }
+
+        if (settingsBackButton != null)
+        {
+            settingsBackButton.onClick.AddListener(
+                ShowMainMenu
+            );
+        }
+
+        if (waitingRoomBackButton != null)
+        {
+            waitingRoomBackButton.onClick.AddListener(
+                HandleWaitingRoomBackClicked
+            );
+        }
+
         hostButton.onClick.AddListener(HandleHostClicked);
         joinButton.onClick.AddListener(HandleJoinClicked);
-        disconnectButton.onClick.AddListener(
-            HandleDisconnectClicked
-        );
 
         joinCodeInput.onValueChanged.AddListener(
             HandleJoinCodeChanged
@@ -83,12 +152,12 @@ public class ConnectionUI : MonoBehaviour
         networkManager.OnClientDisconnectCallback +=
             HandleClientDisconnected;
 
-        SetStatus("SERVICES INITIALIZING...");
+        SetStatus("PREPARING ONLINE SERVICES...");
         SetButtonsInteractable(false);
 
         if (UnityServicesInitializer.Instance == null)
         {
-            SetStatus("SERVICES INITIALIZER NOT FOUND");
+            SetStatus("ONLINE SERVICES ARE UNAVAILABLE");
             return;
         }
 
@@ -98,11 +167,11 @@ public class ConnectionUI : MonoBehaviour
 
         if (!servicesReady)
         {
-            SetStatus("SERVICES INITIALIZATION FAILED");
+            SetStatus("ONLINE SERVICES ARE UNAVAILABLE");
             return;
         }
 
-        SetStatus("SERVICES READY");
+        SetStatus("ONLINE SERVICES READY");
         SetButtonsInteractable(true);
         RefreshJoinButton();
     }
@@ -119,7 +188,7 @@ public class ConnectionUI : MonoBehaviour
                 relayManager.CurrentJoinCode))
         {
             SetStatus(
-                "NO JOIN CODE TO COPY"
+                "NO ROOM CODE TO COPY"
             );
 
             return;
@@ -129,7 +198,7 @@ public class ConnectionUI : MonoBehaviour
             relayManager.CurrentJoinCode;
 
         SetStatus(
-            "JOIN CODE COPIED"
+            "ROOM CODE COPIED"
         );
 
         copyCooldownRoutine =
@@ -174,7 +243,7 @@ public class ConnectionUI : MonoBehaviour
     private async void HandleHostClicked()
     {
         SetButtonsInteractable(false);
-        SetStatus("CREATING RELAY...");
+        SetStatus("CREATING ROOM...");
 
         string joinCode =
             await relayManager.StartHostWithRelayAsync();
@@ -185,12 +254,9 @@ public class ConnectionUI : MonoBehaviour
             return;
 
         generatedCodeText.text =
-            $"JOIN CODE: {joinCode}";
+            $"ROOM CODE: {joinCode}";
 
-        SetStatus("HOST READY - SHARE JOIN CODE");
-
-        if (disconnectButton != null)
-            disconnectButton.gameObject.SetActive(true);
+        SetStatus("ROOM READY - SHARE THE CODE");
     }
 
     private async void HandleJoinClicked()
@@ -200,12 +266,12 @@ public class ConnectionUI : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(joinCode))
         {
-            SetStatus("ENTER A JOIN CODE");
+            SetStatus("ENTER A ROOM CODE");
             return;
         }
 
         SetButtonsInteractable(false);
-        SetStatus("CONNECTING...");
+        SetStatus("JOINING ROOM...");
 
         bool clientStarted =
             await relayManager.StartClientWithRelayAsync(
@@ -226,20 +292,22 @@ public class ConnectionUI : MonoBehaviour
         if (networkManager == null)
             return;
 
-        bool isHostsLocalClient =
-            networkManager.IsHost &&
-            clientId == networkManager.LocalClientId;
-
-        if (isHostsLocalClient)
+        if (networkManager.IsHost)
         {
+            bool isLocalHost =
+                clientId ==
+                networkManager.LocalClientId;
+
             SetStatus(
-                "HOST READY - WAITING ROOM"
+                isLocalHost
+                    ? "ROOM READY - WAITING FOR PLAYER"
+                    : "PLAYER JOINED - PREPARING MATCH"
             );
         }
         else
         {
             SetStatus(
-                "CONNECTED - WAITING ROOM"
+                "ROOM JOINED - WAITING FOR HOST"
             );
         }
 
@@ -261,47 +329,78 @@ public class ConnectionUI : MonoBehaviour
         {
             ShowConnectionMenu();
             generatedCodeText.text =
-                $"JOIN CODE: {relayManager.CurrentJoinCode}";
+                $"ROOM CODE: {relayManager.CurrentJoinCode}";
 
             SetStatus(
-                "CLIENT DISCONNECTED - WAITING FOR PLAYER"
+                "PLAYER LEFT - WAITING FOR PLAYER"
             );
-
-            disconnectButton.gameObject.SetActive(true);
+            
             return;
         }
 
         relayManager?.ResetSessionState();
 
-        ShowConnectionMenu();
+        ShowMainMenu();
         SetButtonsInteractable(true);
         RefreshJoinButton();
-        SetStatus("DISCONNECTED");
+        SetStatus("LEFT ROOM");
     }
-
-    private void HandleDisconnectClicked()
+    
+    public void ReturnToMainMenuAfterMatch()
     {
         if (disconnectRoutine != null)
             return;
 
         disconnectRoutine =
             StartCoroutine(
-                ShutdownNetworkRoutine()
+                ShutdownNetworkRoutine(false)
+            );
+    }
+    
+    public void LeaveCurrentMatch()
+    {
+        if (disconnectRoutine != null)
+            return;
+
+        disconnectRoutine =
+            StartCoroutine(
+                ShutdownNetworkRoutine(true)
             );
     }
 
-    private IEnumerator ShutdownNetworkRoutine()
+    private void HandleWaitingRoomBackClicked()
+    {
+        if (disconnectRoutine != null ||
+            disconnecting)
+        {
+            return;
+        }
+
+        disconnectRoutine =
+            StartCoroutine(
+                ShutdownNetworkRoutine(
+                    true,
+                    true
+                )
+            );
+    }
+
+    private IEnumerator ShutdownNetworkRoutine(
+        bool showDisconnectingScreen,
+        bool returnToConnectionMenu = false)
     {
         disconnecting = true;
 
         float disconnectStartedAt =
             Time.unscaledTime;
+        
+        if (showDisconnectingScreen)
+        {
+            ShowConnectionMenu();
 
-        // Bağlantı ekranını hemen göster.
-        ShowConnectionMenu();
-
-        SetButtonsInteractable(false);
-        SetStatus("DISCONNECTING...");
+            SetButtonsInteractable(false);
+            SetStatus("LEAVING ROOM...");
+        }
 
         if (lobbyInitializationRoutine != null)
         {
@@ -352,10 +451,18 @@ public class ConnectionUI : MonoBehaviour
 
         relayManager?.ResetSessionState();
 
-        ShowConnectionMenu();
+        if (returnToConnectionMenu)
+        {
+            ShowConnectionMenu();
+        }
+        else
+        {
+            ShowMainMenu();
+        }
+
         SetButtonsInteractable(true);
         RefreshJoinButton();
-        SetStatus("DISCONNECTED");
+        SetStatus("LEFT ROOM");
 
         disconnecting = false;
         disconnectRoutine = null;
@@ -422,25 +529,30 @@ public class ConnectionUI : MonoBehaviour
         if (preGameRoot != null)
             preGameRoot.SetActive(true);
 
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
+
         if (connectionView != null)
             connectionView.SetActive(false);
 
         if (waitingRoomPanel != null)
             waitingRoomPanel.SetActive(true);
 
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
         if (matchCanvas != null)
             matchCanvas.SetActive(false);
-
-        if (disconnectButton != null)
-        {
-            disconnectButton.gameObject.SetActive(
-                true
-            );
-        }
     }
 
     private void EnterGame()
-    {
+    {   
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+        
         if (connectionView != null)
             connectionView.SetActive(false);
 
@@ -453,13 +565,6 @@ public class ConnectionUI : MonoBehaviour
         if (matchCanvas != null)
             matchCanvas.SetActive(true);
 
-        if (disconnectButton != null)
-        {
-            disconnectButton.gameObject.SetActive(
-                true
-            );
-        }
-
         SetStatus("MATCH STARTED");
 
         Debug.Log(
@@ -467,10 +572,76 @@ public class ConnectionUI : MonoBehaviour
         );
     }
 
+    private void ShowMainMenu()
+    {
+        if (preGameRoot != null)
+            preGameRoot.SetActive(true);
+
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(true);
+
+        if (connectionView != null)
+            connectionView.SetActive(false);
+
+        if (waitingRoomPanel != null)
+            waitingRoomPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
+        if (matchCanvas != null)
+            matchCanvas.SetActive(false);
+    }
+
+    private void ShowSettingsMenu()
+    {
+        if (preGameRoot != null)
+            preGameRoot.SetActive(true);
+
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
+
+        if (connectionView != null)
+            connectionView.SetActive(false);
+
+        if (waitingRoomPanel != null)
+            waitingRoomPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(true);
+
+        if (matchCanvas != null)
+            matchCanvas.SetActive(false);
+    }
+
+    private void HandleConnectionBackClicked()
+    {
+        bool networkRunning =
+            networkManager != null &&
+            networkManager.IsListening;
+
+        if (networkRunning)
+            return;
+
+        ShowMainMenu();
+    }
+
+    private void HandleQuitClicked()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+    Application.Quit();
+#endif
+    }
+
     private void ShowConnectionMenu()
     {
         if (preGameRoot != null)
             preGameRoot.SetActive(true);
+
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
 
         if (connectionView != null)
             connectionView.SetActive(true);
@@ -478,18 +649,14 @@ public class ConnectionUI : MonoBehaviour
         if (waitingRoomPanel != null)
             waitingRoomPanel.SetActive(false);
 
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
         if (matchCanvas != null)
             matchCanvas.SetActive(false);
 
-        if (disconnectButton != null)
-        {
-            disconnectButton.gameObject.SetActive(
-                false
-            );
-        }
-
         if (generatedCodeText != null)
-            generatedCodeText.text = "JOIN CODE: -";
+            generatedCodeText.text = "ROOM CODE: -";
 
         if (copyCodeButton != null)
             copyCodeButton.interactable = false;
@@ -515,8 +682,8 @@ public class ConnectionUI : MonoBehaviour
         {
             generatedCodeText.text =
                 string.IsNullOrEmpty(joinCode)
-                    ? "JOIN CODE: -"
-                    : $"JOIN CODE: {joinCode}";
+                    ? "ROOM CODE: -"
+                    : $"ROOM CODE: {joinCode}";
         }
 
         bool networkRunning =
@@ -541,13 +708,6 @@ public class ConnectionUI : MonoBehaviour
                 networkRunning &&
                 !copyCooldownActive &&
                 !string.IsNullOrEmpty(joinCode);
-        }
-
-        if (disconnectButton != null)
-        {
-            disconnectButton.gameObject.SetActive(
-                networkRunning
-            );
         }
     }
 
@@ -604,16 +764,20 @@ public class ConnectionUI : MonoBehaviour
             upperMessage.Contains("ERROR") ||
             upperMessage.Contains("INVALID") ||
             upperMessage.Contains("NOT FOUND") ||
-            upperMessage.Contains("DISCONNECTED"))
+            upperMessage.Contains("COULD NOT") ||
+            upperMessage.Contains("UNAVAILABLE"))
         {
             // Hata veya bağlantı kesilmesi
             statusText.color =
                 new Color32(229, 107, 93, 255);
         }
         else if (upperMessage.Contains("WAITING") ||
+                 upperMessage.Contains("PREPARING") ||
                  upperMessage.Contains("INITIALIZING") ||
                  upperMessage.Contains("CREATING") ||
-                 upperMessage.Contains("CONNECTING"))
+                 upperMessage.Contains("CONNECTING") ||
+                 upperMessage.Contains("JOINING") ||
+                 upperMessage.Contains("LEAVING"))
         {
             // Devam eden işlem veya bekleme
             statusText.color =
@@ -621,6 +785,8 @@ public class ConnectionUI : MonoBehaviour
         }
         else if (upperMessage.Contains("READY") ||
                  upperMessage.Contains("CONNECTED") ||
+                 upperMessage.Contains("JOINED") ||
+                 upperMessage.Contains("CREATED") ||
                  upperMessage.Contains("COPIED"))
         {
             // Başarılı durum
@@ -637,6 +803,49 @@ public class ConnectionUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (playButton != null)
+        {
+            playButton.onClick.RemoveListener(
+                ShowConnectionMenu
+            );
+        }
+
+        if (settingsButton != null)
+        {
+            settingsButton.onClick.RemoveListener(
+                ShowSettingsMenu
+            );
+        }
+
+        if (quitButton != null)
+        {
+            quitButton.onClick.RemoveListener(
+                HandleQuitClicked
+            );
+        }
+
+        if (connectionBackButton != null)
+        {
+            connectionBackButton.onClick.RemoveListener(
+                HandleConnectionBackClicked
+            );
+        }
+
+        if (settingsBackButton != null)
+        {
+            settingsBackButton.onClick.RemoveListener(
+                ShowMainMenu
+            );
+        }
+
+        
+        if (waitingRoomBackButton != null)
+        {
+            waitingRoomBackButton.onClick.RemoveListener(
+                HandleWaitingRoomBackClicked
+            );
+        }
+        
         if (hostButton != null)
         {
             hostButton.onClick.RemoveListener(
@@ -648,13 +857,6 @@ public class ConnectionUI : MonoBehaviour
         {
             joinButton.onClick.RemoveListener(
                 HandleJoinClicked
-            );
-        }
-
-        if (disconnectButton != null)
-        {
-            disconnectButton.onClick.RemoveListener(
-                HandleDisconnectClicked
             );
         }
 
@@ -689,5 +891,8 @@ public class ConnectionUI : MonoBehaviour
             lobbyManager.MatchStarted -=
                 EnterGame;
         }
+        
+        if (Instance == this)
+            Instance = null;
     }
 }

@@ -5,6 +5,7 @@ public enum MatchPhase : byte
     Countdown,
     Combat,
     RoundEnding,
+    Shop,
     MatchEnded
 }
 
